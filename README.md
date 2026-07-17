@@ -46,7 +46,7 @@ npm run build
 
 ## Deploy to Vercel
 
-The repository includes a production-ready [`vercel.json`](vercel.json) for GitHub-connected Vercel deployments. Import the repository as a Vite project; the configuration runs `npm ci`, builds with Node.js 24, publishes `dist`, and sends SPA deep links to `index.html`.
+The repository includes a production-ready [`vercel.json`](vercel.json) for GitHub-connected Vercel deployments. Import the repository as a Vite project; the configuration installs from the committed npm lockfile, builds with Node.js 24, publishes `dist`, and sends SPA deep links to `index.html`.
 
 For optional GitHub sign-in, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in Vercel's project environment variables, then redeploy. Never add the GitHub OAuth client secret to Vercel or to a `VITE_` variable.
 
@@ -100,7 +100,7 @@ Before submission, replace the placeholders below using the actual ChatGPT/Codex
 - GPT-5.6 session verified: **Yes — 5.6 Sol Light, visually confirmed in the Codex client on 2026-07-17**
 - `/feedback` session ID: **TODO**
 - Public demo URL: **TODO**
-- Public repository URL: **TODO**
+- Public repository URL: **https://github.com/visprogithub/proofline**
 - Narrated demo video: **TODO**
 
 The detailed build record is in [docs/codex-build-log.md](docs/codex-build-log.md), and the recording outline is in [docs/demo-script.md](docs/demo-script.md).

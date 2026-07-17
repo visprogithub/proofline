@@ -10,11 +10,13 @@ Proofline is a static Vite application. The committed `vercel.json` pins the ins
 4. The committed configuration supplies these settings:
 
    ```text
-   Install Command: npm ci
+   Install Command: npm install
    Build Command: npm run build
    Output Directory: dist
    Node.js: 24.x
    ```
+
+Vercel uses `npm install` for deployment compatibility while honoring the committed `package-lock.json`. Local development and GitHub Actions use the stricter `npm ci` clean-install path.
 
 ## 2. Add the public Supabase browser configuration
 
