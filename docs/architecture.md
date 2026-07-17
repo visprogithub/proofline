@@ -180,7 +180,7 @@ These states describe observed artifacts. They are not correctness, security, or
 
 ## Deployment
 
-- Vite produces static assets deployed to Vercel through the root `vercel.json`; Vercel installs with `npm ci`, builds with Node.js 24, publishes `dist`, and rewrites SPA paths to `index.html`.
+- Vite produces static assets deployed to Vercel through the root `vercel.json`; Vercel installs from the committed npm lockfile, builds with Node.js 24, publishes `dist`, and rewrites SPA paths to `index.html`.
 - No application server, serverless function, database, queue, or persistent storage is required.
 - Optional Supabase browser configuration is provided through Vercel project environment variables and compiled into the Vite bundle; the GitHub OAuth client secret remains only in Supabase.
 - The deployment must remain usable through the bundled demo when GitHub is unavailable.

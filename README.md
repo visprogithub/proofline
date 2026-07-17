@@ -46,7 +46,7 @@ npm run build
 
 ## Deploy to Vercel
 
-The repository includes a production-ready [`vercel.json`](vercel.json) for GitHub-connected Vercel deployments. Import the repository as a Vite project; the configuration runs `npm ci`, builds with Node.js 24, publishes `dist`, and sends SPA deep links to `index.html`.
+The repository includes a production-ready [`vercel.json`](vercel.json) for GitHub-connected Vercel deployments. Import the repository as a Vite project; the configuration installs from the committed npm lockfile, builds with Node.js 24, publishes `dist`, and sends SPA deep links to `index.html`.
 
 For optional GitHub sign-in, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in Vercel's project environment variables, then redeploy. Never add the GitHub OAuth client secret to Vercel or to a `VITE_` variable.
 
