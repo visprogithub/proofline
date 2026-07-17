@@ -100,7 +100,7 @@ Before submission, replace the placeholders below using the actual ChatGPT/Codex
 - GPT-5.6 session verified: **Yes — 5.6 Sol Light, visually confirmed in the Codex client on 2026-07-17**
 - `/feedback` session ID: **TODO**
 - Public demo URL: **TODO**
-- Public repository URL: **TODO**
+- Public repository URL: **https://github.com/visprogithub/proofline**
 - Narrated demo video: **TODO**
 
 The detailed build record is in [docs/codex-build-log.md](docs/codex-build-log.md), and the recording outline is in [docs/demo-script.md](docs/demo-script.md).
