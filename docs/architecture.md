@@ -55,7 +55,7 @@ Pure TypeScript changed-line detectors and normalized external-report adapters p
 One typed, validated source of truth for operational bounds:
 
 - 100 changed PR files.
-- 20 requirement-document candidates.
+- 6 requirement-document candidates.
 - 256 KB per fetched candidate document.
 - 5 MB per local import.
 

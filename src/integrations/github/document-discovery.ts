@@ -1,11 +1,11 @@
 import type { OperationalLimits } from '../../config/limits'
 import { DEFAULT_LIMITS } from '../../config/limits'
+import { declaredRequirementIdentifiers } from '../../domain/evidence/requirement-identifiers'
 import type { RepositoryTreeEntry } from './types'
 
 const TEXT_EXTENSION = /\.(?:md|mdx|txt|rst|adoc)$/i
 const NAME_SIGNAL = /(?:requirements?|specification|spec|prd|rfc|stories|acceptance|criteria|design|proposal)/i
 const DIRECTORY_SIGNAL = /(?:^|\/)(?:docs?|specs?|planning|requirements?|rfcs?|design)(?:\/|$)/i
-const REQUIREMENT_ID = /\b[A-Z][A-Z0-9_-]{1,15}-\d{1,8}\b/g
 
 export interface RequirementDocumentCandidate {
   path: string
@@ -48,16 +48,16 @@ function rankPath(entry: RepositoryTreeEntry): { score: number; reasons: string[
 function rankContent(content: string): { score: number; requirementIdCount: number; reasons: string[] } {
   let score = 0
   const reasons: string[] = []
-  const ids = new Set(content.match(REQUIREMENT_ID) ?? [])
-  if (ids.size) {
-    score += Math.min(8, ids.size * 2)
-    reasons.push(`${ids.size} stable requirement ID${ids.size === 1 ? '' : 's'}`)
+  const ids = declaredRequirementIdentifiers(content)
+  if (ids.length) {
+    score += Math.min(8, ids.length * 2)
+    reasons.push(`${ids.length} stable requirement ID${ids.length === 1 ? '' : 's'}`)
   }
   if (/^#{1,6}\s+(?:requirements?|acceptance criteria|user stories)/im.test(content)) {
     score += 3
     reasons.push('requirement-oriented heading')
   }
-  return { score, requirementIdCount: ids.size, reasons }
+  return { score, requirementIdCount: ids.length, reasons }
 }
 
 /**

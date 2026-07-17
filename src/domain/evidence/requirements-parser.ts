@@ -1,7 +1,8 @@
 import type { Requirement, SourceProvenance } from './types'
+import { declaredRequirementIdentifier } from './requirement-identifiers'
 
-const REQUIREMENT_ID = /\b([A-Z][A-Z0-9_-]{1,15}-\d{1,8})\b/
 const BULLET = /^\s*(?:[-*+] |\d+[.)] )/
+const DECLARATION_PREFIX = /^\s{0,3}(?:(?:#{1,6}|[-*+]|\d+[.)])\s+|\|\s*)?/
 
 /**
  * Extracts stable-ID requirements from Markdown while retaining exact source
@@ -16,10 +17,8 @@ export function parseRequirements(
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? ''
-    const match = REQUIREMENT_ID.exec(line)
-    if (!match?.[1]) continue
-
-    const id = match[1]
+    const id = declaredRequirementIdentifier(line)
+    if (!id) continue
     if (requirements.some((requirement) => requirement.id === id)) continue
 
     const acceptanceCriteria: string[] = []
@@ -27,7 +26,7 @@ export function parseRequirements(
 
     while (cursor < lines.length) {
       const candidate = lines[cursor] ?? ''
-      if (REQUIREMENT_ID.test(candidate)) break
+      if (declaredRequirementIdentifier(candidate)) break
       if (candidate.trim() && BULLET.test(candidate)) {
         acceptanceCriteria.push(candidate.replace(BULLET, '').trim())
       } else if (candidate.trim() && !candidate.startsWith('  ')) {
@@ -37,9 +36,12 @@ export function parseRequirements(
     }
 
     const title = line
-      .replace(/^\s{0,3}#{1,6}\s*/, '')
-      .replace(REQUIREMENT_ID, '')
+      .replace(DECLARATION_PREFIX, '')
+      .replace(/^(?:\*\*|__|`|\[)/, '')
+      .replace(id, '')
+      .replace(/^\s*(?:\*\*|__|`|\]|\|)+\s*/, '')
       .replace(/^\s*[:—–-]\s*/, '')
+      .replace(/\s*\|\s*$/, '')
       .trim() || id
 
     requirements.push({

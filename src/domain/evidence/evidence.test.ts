@@ -23,6 +23,23 @@ describe('evidence domain', () => {
     })
   })
 
+  it('only treats structurally declared identifiers as requirements', () => {
+    const result = parseRequirements(
+      [
+        'ryOS is licensed under AGPL-3.0.',
+        'This sentence references REQ-999 but does not declare it.',
+        '- **SEC-AUTH-201**: Require GitHub login',
+        '| DATA-202 | Export analysis |',
+      ].join('\n'),
+      source,
+    )
+
+    expect(result.map(({ id, title }) => [id, title])).toEqual([
+      ['SEC-AUTH-201', 'Require GitHub login'],
+      ['DATA-202', 'Export analysis'],
+    ])
+  })
+
   it('parses passing, failing, and skipped JUnit cases', () => {
     const xml = `
       <testsuites><testsuite name="exports">

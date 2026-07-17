@@ -37,7 +37,7 @@ Build a greenfield static React/TypeScript application with a framework-independ
   - Record privacy boundaries, data flow, failure isolation, and deferred GitHub App/OAuth authentication.
 - [ ] **Implement centralized operational limits**
   - File: `src/config/limits.ts`
-  - Export a readonly validated configuration with defaults for 100 changed files, 20 candidate documents, 256 KB candidate size, and 5 MB local imports.
+  - Export a readonly validated configuration with defaults for 100 changed files, 6 candidate documents, 256 KB candidate size, and 5 MB local imports.
   - Ensure feature code consumes this object rather than duplicating numeric values.
 
 **Tests**
@@ -127,7 +127,7 @@ Build a greenfield static React/TypeScript application with a framework-independ
 - [ ] **Implement explainable requirement-document discovery**
   - File: `src/integrations/github/document-discovery.ts`
   - Rank PR text, linked issues, and repository documents by path, filename, extension, size, and content signals.
-  - Fetch at most 20 candidates no larger than 256 KB and return rank explanations and ambiguity states.
+  - Fetch at most 6 candidates no larger than 256 KB and return rank explanations and ambiguity states.
 - [ ] **Implement bounded local file import**
   - File: `src/integrations/local/file-import.ts`
   - Accept supported specification, diff, and JUnit files up to 5 MB with file-type, decoding, and parser error handling.

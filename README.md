@@ -87,7 +87,7 @@ Proofline reports evidence, not semantic correctness. Human review remains the d
 - Public GitHub analysis can use anonymous read-only requests (60 requests per hour per public IP) or optional Supabase-managed GitHub OAuth (up to 5,000 requests per hour for the signed-in user).
 - The optional GitHub provider token is kept in tab-scoped session storage, is sent only to GitHub's API, and is cleared when the tab closes or the user returns to anonymous mode.
 - Private repository authentication is a post-hackathon goal and should use a GitHub App or OAuth—not personal access tokens pasted into the app.
-- Candidate discovery is bounded by centralized configuration: 100 changed files, 20 candidate documents, 12 declared claims, 256 KB per candidate, and 5 MB per local import.
+- Candidate discovery is bounded by centralized configuration: 100 changed files, 6 candidate documents, 12 declared claims, 256 KB per candidate, and 5 MB per local import.
 
 See [architecture](docs/architecture.md), the [formal specification](specs/2026-07-16-openai-devpost-hackathon-entry/spec.md), and the [requirements](specs/2026-07-16-openai-devpost-hackathon-entry/planning/requirements.md).
 

@@ -5,7 +5,7 @@ describe('operational limits', () => {
   it('provides the reviewed defaults', () => {
     expect(DEFAULT_LIMITS).toEqual({
       maxChangedFiles: 100,
-      maxRequirementCandidates: 20,
+      maxRequirementCandidates: 6,
       maxCandidateBytes: 262_144,
       maxLocalImportBytes: 5_242_880,
       maxDeclaredClaims: 12,

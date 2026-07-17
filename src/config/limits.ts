@@ -14,7 +14,7 @@ export type OperationalLimits = Readonly<z.infer<typeof limitsSchema>>
 
 export const DEFAULT_LIMITS: OperationalLimits = Object.freeze({
   maxChangedFiles: 100,
-  maxRequirementCandidates: 20,
+  maxRequirementCandidates: 6,
   maxCandidateBytes: 256 * 1024,
   maxLocalImportBytes: 5 * 1024 * 1024,
   maxDeclaredClaims: 12,

@@ -63,4 +63,15 @@ describe('requirement document discovery', () => {
     expect(result.selected).toBeNull()
     expect(result.ambiguous).toBe(false)
   })
+
+  it('does not mistake license versions in prose for requirement IDs', async () => {
+    const read = vi.fn(() => Promise.resolve(
+      '# Terms\nryOS is licensed under AGPL-3.0 and these terms govern hosted use.',
+    ))
+
+    const result = await discoverRequirementDocuments([blob('docs/11-terms.md')], read)
+
+    expect(result.selected).toBeNull()
+    expect(result.candidates[0]?.requirementIdCount).toBe(0)
+  })
 })

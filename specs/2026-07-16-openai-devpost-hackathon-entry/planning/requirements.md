@@ -150,7 +150,7 @@ The product name is deliberately provisional. The hackathon guidance recommends 
 - Inspect candidates progressively by path-score tier, stopping when a tier yields a uniquely ranked document with stable requirement IDs.
 - Keep completed analyses and fresh GitHub responses in page memory, deduplicate matching in-flight requests, and use ETag revalidation for stale responses.
 - Centralize operational limits in one typed, validated configuration module; analyzer and UI code must not duplicate limit values.
-- Default to 100 changed PR files, 20 requirement-document candidates, 256 KB per fetched candidate document, and 5 MB per local import.
+- Default to 100 changed PR files, 6 requirement-document candidates, 256 KB per fetched candidate document, and 5 MB per local import.
 - When an input exceeds a limit, stop safely, identify the limit, and direct the user to an applicable local-import fallback.
 - Preserve source provenance across PR descriptions, linked issues, repository documents, pasted text, and uploaded files.
 - Treat evidence association as explainable rules with confidence and provenance, not opaque certainty.

@@ -35,7 +35,7 @@ Give software reviewers a fast, transparent way to determine whether a GitHub co
 - Recognize common names and locations such as specifications, requirements, PRDs, RFCs, stories, acceptance criteria, issues, and planning or documentation directories without limiting discovery to that vocabulary.
 - Fetch only a bounded set of small, high-ranking text candidates to respect GitHub API limits and browser resources.
 - Fetch candidates progressively by path-ranking tier and stop after a tier produces a uniquely ranked document with stable requirement IDs.
-- Inspect at most 20 candidate requirement documents and fetch only text candidates no larger than 256 KB each by default.
+- Inspect at most 6 candidate requirement documents and fetch only text candidates no larger than 256 KB each by default.
 - Show the selected source and why it was selected; when confidence is insufficient or multiple candidates are plausible, require the user to choose.
 - Preserve and display whether each requirement came from a PR description, linked issue, repository document, pasted text, or uploaded file.
 - Allow users to override discovery by selecting a repository file, pasting requirements, or uploading a local document.
