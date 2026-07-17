@@ -31,6 +31,41 @@ describe('declared change claims', () => {
     expect(claims[0]?.title).toBe('feat: improve loading feedback')
   })
 
+  it('extracts package and version claims from dependency update tables', () => {
+    const claims = parseDeclaredChangeClaims(`
+Bumps the dependency group with two updates:
+
+| Package | From | To |
+| --- | --- | --- |
+| [@ai-sdk/react](https://example.test/react) | 4.0.23 | 4.0.24 |
+| dompurify | 3.4.11 | 3.4.12 |
+`, 'Bump dependency group', source)
+
+    expect(claims.map(({ title }) => title)).toEqual([
+      'Update @ai-sdk/react from 4.0.23 to 4.0.24',
+      'Update dompurify from 3.4.11 to 3.4.12',
+    ])
+
+    const associations = associateEvidence(claims, [{
+      id: 'file:package.json', kind: 'implementation', label: 'package.json',
+      content: '- "@ai-sdk/react": "4.0.23"\n+ "@ai-sdk/react": "4.0.24"',
+      location: { source, path: 'package.json' },
+    }])
+    expect(associations[0]).toMatchObject({
+      requirementId: 'CLAIM-001', strength: 'suggested', rule: 'phrase-overlap',
+    })
+    expect(associations[0]?.matchedText).toEqual(
+      expect.arrayContaining(['ai-sdk', 'react', '4.0.23', '4.0.24']),
+    )
+
+    const sameVersionsForAnotherPackage = associateEvidence([claims[1]!], [{
+      id: 'file:other', kind: 'implementation', label: 'package.json',
+      content: '- "unrelated": "3.4.11"\n+ "unrelated": "3.4.12"',
+      location: { source, path: 'package.json' },
+    }])
+    expect(sameVersionsForAnotherPackage).toEqual([])
+  })
+
   it('never creates strong evidence from a generated claim identifier', () => {
     const [claim] = parseDeclaredChangeClaims('', 'Add retry option', source)
     if (!claim) throw new Error('Expected a generated claim')

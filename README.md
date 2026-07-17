@@ -72,7 +72,7 @@ Proofline is a hosted browser developer tool, not an IDE or ChatGPT plugin. The 
 
 1. Proofline reads a public pull request, single commit, or comparison anonymously or through optional GitHub sign-in, or accepts local files in memory.
 2. It looks for requirements in available PR/commit text and likely repository documents at the head revision. Candidates are ranked by path, filename, content signals, and stable requirement IDs.
-3. If no formal IDs exist, it extracts explicitly declared change bullets—or a commit subject—as generated `CLAIM-001` labels. These are visibly identified as claims and can never create strong evidence.
+3. If no formal IDs exist, it extracts explicitly declared change bullets, dependency-update table rows, or a commit subject as generated `CLAIM-001` labels. These are visibly identified as claims and can never create strong evidence.
 4. Exact source-authored IDs such as `REQ-101` create strong associations to changed code and test names. Phrase similarity is displayed only as a suggestion.
 5. JUnit results and changed-line implementation evidence produce one of six explicit evidence states.
 6. A separate deterministic scanner reports suspicious placeholders, unimplemented branches, empty handlers, fixture imports, and mock responses.

@@ -13,21 +13,28 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function normalizedTerms(requirement: Requirement): string[] {
-  return Array.from(new Set(
-    `${requirement.title} ${requirement.acceptanceCriteria.join(' ')}`
-      .toLowerCase()
-      .match(/[a-z][a-z0-9-]{3,}/g)
-      ?.filter((term) => !STOP_WORDS.has(term)) ?? [],
-  ))
+function normalizedTerms(requirement: Requirement): { words: string[]; versions: string[] } {
+  const text = `${requirement.title} ${requirement.acceptanceCriteria.join(' ')}`.toLowerCase()
+  const words = text.match(/[a-z][a-z0-9-]{3,}/g)
+    ?.filter((term) => !STOP_WORDS.has(term)) ?? []
+  const versions = text.match(/\b\d+(?:\.\d+){1,3}(?:-[a-z0-9.-]+)?\b/g) ?? []
+  return {
+    words: Array.from(new Set(words)),
+    versions: Array.from(new Set(versions)),
+  }
 }
 
 function suggestionMatches(requirement: Requirement, content: string): string[] {
   const lowerContent = content.toLowerCase()
   const terms = normalizedTerms(requirement)
-  const matches = terms.filter((term) => lowerContent.includes(term))
-  const threshold = Math.max(2, Math.ceil(terms.length * 0.35))
-  return matches.length >= threshold ? matches : []
+  const wordMatches = terms.words.filter((term) => lowerContent.includes(term))
+  const versionMatches = terms.versions.filter((term) => lowerContent.includes(term))
+  const threshold = Math.max(2, Math.ceil(terms.words.length * 0.35))
+  const enoughSemanticTerms = wordMatches.length >= threshold
+  const versionCorroboratedTerm = wordMatches.length >= 1 && versionMatches.length >= 1
+  return enoughSemanticTerms || versionCorroboratedTerm
+    ? [...wordMatches, ...versionMatches]
+    : []
 }
 
 /** Creates deterministic, explainable associations between requirements and artifacts. */
