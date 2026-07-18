@@ -50,7 +50,7 @@ The repository includes a production-ready [`vercel.json`](vercel.json) for GitH
 
 For optional GitHub sign-in, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in Vercel's project environment variables, then redeploy. Never add the GitHub OAuth client secret to Vercel or to a `VITE_` variable.
 
-The optional hosted AI skeptic uses a Vercel Function and a server-owned Hugging Face token. Configure the server-only `HF_TOKEN`, `HF_MODEL`, and `RATE_LIMIT_SALT` variables described in `.env.example`. Never prefix these secrets with `VITE_`. Per-client, shared-request, estimated-token, timeout, and output ceilings are configurable server-side. Limits are best-effort per warm Vercel instance and reset when that instance is recycled or redeployed.
+The optional hosted AI skeptic uses a Vercel Function, Hugging Face's official JavaScript inference client, and a server-owned Hugging Face token. Configure the server-only `HF_TOKEN`, `HF_MODEL`, and `RATE_LIMIT_SALT` variables described in `.env.example`. Never prefix these secrets with `VITE_`. Per-client, shared-request, estimated-token, timeout, and output ceilings are configurable server-side. Limits are best-effort per warm Vercel instance and reset when that instance is recycled or redeployed.
 
 Follow the [Vercel deployment checklist](docs/vercel-deployment.md), including the final Supabase redirect configuration.
 

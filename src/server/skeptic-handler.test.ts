@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { HostedChatClient } from './huggingface-client'
 import { createInMemoryQuotaStore, createSkepticHandler, type SkepticServerEnvironment } from './skeptic-handler'
 
 const env: SkepticServerEnvironment = {
@@ -24,26 +25,38 @@ function request(): Request {
 
 describe('server-side skeptic handler', () => {
   it('reserves in-memory quota before calling Hugging Face and never returns credentials', async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+    const complete = vi.fn<HostedChatClient['complete']>().mockResolvedValue({ choices: [{ message: { content: JSON.stringify({
         verdict: 'hollow-stub', rationale: 'The function body is empty.', citedLineIds: ['L1'],
-      }) } }] }), { status: 200 }))
+      }) } }] })
 
-    const response = await createSkepticHandler({ env, fetcher })(request())
+    const response = await createSkepticHandler({ env, chatClient: { complete } })(request())
     const body = await response.text()
 
     expect(response.status).toBe(200)
-    expect(fetcher.mock.calls[0]?.[0]).toContain('huggingface.co')
+    const [chatRequest, signal] = complete.mock.calls[0] ?? []
+    expect(chatRequest).toMatchObject({ model: 'test/model', maxTokens: 320 })
+    expect(chatRequest?.allowedVerdicts).toContain('hollow-stub')
+    expect(signal).toBeInstanceOf(AbortSignal)
     expect(body).not.toContain('server-secret')
     expect(JSON.parse(body)).toMatchObject({ quota: { remainingToday: 7 } })
   })
 
+  it('accepts JSON wrapped in a Markdown code fence but still validates the contract', async () => {
+    const complete = vi.fn<HostedChatClient['complete']>().mockResolvedValue({ choices: [{ message: { content: `\`\`\`json
+{"verdict":"hollow-stub","rationale":"The function body is empty.","citedLineIds":["L1"]}
+\`\`\`` } }] })
+    const response = await createSkepticHandler({ env, chatClient: { complete } })(request())
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({ result: { verdict: 'hollow-stub' } })
+  })
+
   it('returns a clear reset message and does not call the model when quota is exhausted', async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+    const complete = vi.fn<HostedChatClient['complete']>().mockResolvedValue({ choices: [{ message: { content: JSON.stringify({
       verdict: 'hollow-stub', rationale: 'The function body is empty.', citedLineIds: ['L1'],
-    }) } }] }), { status: 200 }))
+    }) } }] })
     const quotaStore = createInMemoryQuotaStore()
     const handler = createSkepticHandler({
-      env: { ...env, AI_PER_CLIENT_DAILY_LIMIT: '1' }, fetcher, quotaStore,
+      env: { ...env, AI_PER_CLIENT_DAILY_LIMIT: '1' }, chatClient: { complete }, quotaStore,
       now: () => new Date('2026-07-18T08:00:00.000Z'),
     })
     await handler(request())
@@ -51,13 +64,13 @@ describe('server-side skeptic handler', () => {
 
     expect(response.status).toBe(429)
     await expect(response.json()).resolves.toMatchObject({ code: 'client-daily-limit', resetAt: '2026-07-19T00:00:00.000Z' })
-    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(complete).toHaveBeenCalledTimes(1)
   })
 
   it('fails closed when server configuration is missing', async () => {
-    const fetcher = vi.fn<typeof fetch>()
-    const response = await createSkepticHandler({ env: {}, fetcher })(request())
+    const complete = vi.fn<HostedChatClient['complete']>()
+    const response = await createSkepticHandler({ env: {}, chatClient: { complete } })(request())
     expect(response.status).toBe(503)
-    expect(fetcher).not.toHaveBeenCalled()
+    expect(complete).not.toHaveBeenCalled()
   })
 })

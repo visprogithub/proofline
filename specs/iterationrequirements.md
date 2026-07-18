@@ -80,7 +80,7 @@ Evaluate an in-browser embedding provider for requirement-to-hunk retrieval agai
 - Every provider reports a stable provider ID, model ID, model revision when available, capability, and configuration status.
 - The deterministic application runs unchanged when no model provider is configured.
 - The browser adapter calls only Proofline's same-origin `/api/skeptic` endpoint; provider credentials and model selection remain server-side.
-- The Vercel function uses direct `fetch` against Hugging Face's OpenAI-compatible endpoint; no provider SDK dependency is required unless separately reviewed.
+- The Vercel function uses the officially reviewed `@huggingface/inference` client for provider routing, cancellation, typed errors, and schema-constrained chat completions.
 - The selected hosted model is configured through server-only environment variables and must be pinned after passing PL-731 evaluation.
 
 ## PL-712: Assess strong implementation and test evidence with explicit verdict contracts
@@ -104,7 +104,7 @@ Evaluate an in-browser embedding provider for requirement-to-hunk retrieval agai
 - Before every model call, best-effort in-memory controls reserve a per-client request, a global request, and an estimated token allowance for the current warm function instance.
 - Client identity uses a server-salted one-way hash of the connection address; raw addresses, repository content, prompts, model output, and quota records are not persisted.
 - Initial server defaults are 8 requests per client per UTC day, 50 shared requests per UTC day, and 250,000 estimated shared tokens per UTC day for each warm function instance; all are adjustable through server-only configuration.
-- The provider timeout is 20 seconds within a 30-second function ceiling, and output is capped at 180 tokens by default. Reservations are conservatively retained after provider failure or timeout.
+- The provider timeout is 20 seconds within a 30-second function ceiling, and output is capped at 320 tokens by default. Reservations are conservatively retained after provider failure or timeout.
 - Daily-limit responses use HTTP 429 and display whether the client or shared budget was reached plus the UTC reset time. In-memory controls reset when the function instance is recycled or redeployed; missing configuration uses HTTP 503 with a clear retry message.
 - Prioritize hosted calls in this order: failing-test links, passing test-source links, implementation links, then remaining eligible pairs.
 - Initial reviewed limits are 8 hosted assessments per analysis, 20,000 input characters per call, 2 concurrent calls, 30-second timeout, and 1 retry only for retryable transport or rate-limit failures.
