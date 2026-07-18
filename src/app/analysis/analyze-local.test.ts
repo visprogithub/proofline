@@ -25,4 +25,16 @@ describe('local evidence analysis', () => {
       requirements: { name: 'requirements.md', text: '## REQ-101: Export' },
     })).toThrow('requires one .diff')
   })
+
+  it('PL-104 rejects an empty or hunk-less diff instead of returning a requirements-only result', () => {
+    expect(() => analyzeLocalBundle({
+      requirements: { name: 'requirements.md', text: '## REQ-101: Export' },
+      diff: { name: 'empty.patch', text: '' },
+    })).toThrow('empty.patch is empty or contains no unified diff hunks')
+
+    expect(() => analyzeLocalBundle({
+      requirements: { name: 'requirements.md', text: '## REQ-101: Export' },
+      diff: { name: 'notes.patch', text: 'This is not a unified diff.' },
+    })).toThrow('notes.patch is empty or contains no unified diff hunks')
+  })
 })

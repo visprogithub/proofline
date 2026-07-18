@@ -67,6 +67,9 @@ export function analyzeLocalBundle(bundle: LocalBundle): AnalysisCase {
   const requirements = parseRequirements(bundle.requirements.text, requirementSource)
   if (!requirements.length) throw new Error('The requirements file contains no stable requirement IDs.')
   const parsedDiff = parseUnifiedDiff(bundle.diff.text, diffSource)
+  if (!parsedDiff.artifacts.some(({ diff }) => Boolean(diff?.hunks.length))) {
+    throw new Error(`${bundle.diff.name} is empty or contains no unified diff hunks.`)
+  }
   const testArtifacts = bundle.junit
     ? parseJunit(bundle.junit.text, { kind: 'uploaded-file', label: bundle.junit.name })
     : []

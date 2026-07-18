@@ -39,11 +39,13 @@ Proofline reduces API traffic by caching completed analyses and fresh GitHub res
 
 ## Import local evidence
 
-Local import does not accept a repository ZIP. A ZIP is only a source snapshot and does not identify the change baseline Proofline needs. Instead, choose these files together in the **Import local evidence** file picker:
+Local import does not accept a repository ZIP. A ZIP is only a source snapshot and does not identify the change baseline Proofline needs. Open **Import local evidence**, choose each file in its labeled field, and select **Analyze local evidence** after both required fields are populated:
 
 - exactly one requirements file: `.md`, `.mdx`, `.txt`, `.rst`, or `.adoc`;
 - exactly one Git unified diff: `.diff` or `.patch`;
 - optionally one JUnit-compatible test report: `.xml`.
+
+The diff must contain at least one unified-diff hunk beginning with `@@`; an empty or hunk-less `.patch` file is rejected with a visible error instead of producing a requirements-only result.
 
 The requirements document must contain stable IDs such as `REQ-101`. To compare the current branch with `main`, create the patch from the repository root:
 
