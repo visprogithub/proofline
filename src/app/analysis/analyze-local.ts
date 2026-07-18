@@ -10,6 +10,7 @@ import type { AnalysisCase } from './types'
 import { parseDiffEvidence } from '../../domain/evidence/diff-evidence'
 import { artifactClassification } from '../../domain/evidence/artifact-role'
 import { buildAssessmentContexts } from '../../domain/evidence/assessment-context'
+import { changedLinesFromPatch } from './patch-lines'
 
 type LocalBundle = Partial<Record<LocalFileKind, { name: string; text: string }>>
 
@@ -22,20 +23,21 @@ function parseUnifiedDiff(text: string, source: SourceProvenance): ParsedDiff {
   const artifacts: EvidenceArtifact[] = []
   const changedLines: ChangedLine[] = []
   let path = 'uploaded.patch'
-  let newLine = 0
   let artifactLines: string[] = []
 
   function flush(): void {
     if (!artifactLines.length) return
     const content = artifactLines.join('\n')
+    const diff = parseDiffEvidence(path, content)
     artifacts.push({
       id: `diff:${path}:${artifacts.length}`,
       ...artifactClassification(path),
       label: path,
       content,
-      diff: parseDiffEvidence(path, content),
+      diff,
       location: { source, path },
     })
+    changedLines.push(...changedLinesFromPatch(path, content))
     artifactLines = []
   }
 
@@ -48,18 +50,6 @@ function parseUnifiedDiff(text: string, source: SourceProvenance): ParsedDiff {
       continue
     }
     artifactLines.push(line)
-    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line)
-    if (hunk?.[1]) {
-      newLine = Number(hunk[1])
-      continue
-    }
-    if (line.startsWith('+++') || line.startsWith('---')) continue
-    if (line.startsWith('+')) {
-      changedLines.push({ path, line: newLine, content: line.slice(1), change: 'added' })
-      newLine += 1
-    } else if (!line.startsWith('-')) {
-      newLine += 1
-    }
   }
   flush()
   return { artifacts, changedLines }

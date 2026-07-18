@@ -73,6 +73,7 @@ export interface EvidenceArtifact {
   content: string
   role?: ArtifactRole
   diff?: DiffEvidence
+  headSource?: { content: string; revision: string }
   location: SourceLocation
   outcome?: TestOutcome
 }

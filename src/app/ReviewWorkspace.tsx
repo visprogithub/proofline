@@ -62,6 +62,7 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
   const [showSkeptic, setShowSkeptic] = useState(false)
   const [consent, setConsent] = useState(persistedConsent)
   const [selectedContextIds, setSelectedContextIds] = useState<Set<string>>(() => new Set())
+  const [attemptedContextIds, setAttemptedContextIds] = useState<Set<string>>(() => new Set())
   const [assessing, setAssessing] = useState(false)
   const [assessmentError, setAssessmentError] = useState<string | null>(null)
   const assessmentController = useRef<AbortController | null>(null)
@@ -107,6 +108,7 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
     const controller = new AbortController()
     assessmentController.current = controller
     setAssessing(true)
+    setAttemptedContextIds((current) => new Set([...current, ...selectedContextIds]))
     try {
       const provider = new ProoflineSkeptic()
       setCurrentAnalysis(await augmentAnalysis(currentAnalysis, provider, controller.signal, selectedContextIds))
@@ -147,7 +149,10 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
       if (hasSelectedContext) {
         for (const { id } of contexts) next.delete(id)
       } else {
-        for (const { id } of contexts) {
+        const ordered = [...contexts].sort((left, right) =>
+          Number(attemptedContextIds.has(left.id)) - Number(attemptedContextIds.has(right.id)))
+        for (const { id } of ordered) {
+          if (advisoryByContextId.get(id)?.reason === 'secret-detected') continue
           if (next.size >= DEFAULT_LIMITS.maxHostedAssessments) break
           next.add(id)
         }
@@ -157,7 +162,14 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
   }
 
   function selectNextBatch(): void {
-    const candidates = assessableContexts.filter(({ id }) => advisoryByContextId.get(id)?.status !== 'assessed')
+    const selectable = assessableContexts.filter(({ id }) => {
+      const advisory = advisoryByContextId.get(id)
+      return advisory?.status !== 'assessed' && advisory?.reason !== 'secret-detected'
+    })
+    const candidates = [
+      ...selectable.filter(({ id }) => !attemptedContextIds.has(id)),
+      ...selectable.filter(({ id }) => attemptedContextIds.has(id)),
+    ]
     setSelectedContextIds(new Set(candidates.slice(0, DEFAULT_LIMITS.maxHostedAssessments).map(({ id }) => id)))
   }
 
@@ -259,6 +271,7 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
                           const advisory = advisoryByContextId.get(context.id)
                           const selected = selectedContextIds.has(context.id)
                           const selectionFull = selectedContextIds.size >= DEFAULT_LIMITS.maxHostedAssessments
+                          const permanentlyBlocked = advisory?.reason === 'secret-detected'
                           return (
                             <article className={selected ? 'payload-selected' : ''} key={context.id}>
                               <label className="payload-item-heading">
@@ -266,12 +279,20 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
                                   type="checkbox"
                                   aria-label={`Select ${context.requirement.id} payload ${context.artifactLabel}`}
                                   checked={selected}
-                                  disabled={assessing || (!selected && selectionFull)}
+                                  disabled={assessing || permanentlyBlocked || (!selected && selectionFull)}
                                   onChange={() => toggleContext(context.id)}
                                 />
                                 <strong>{context.artifactLabel}</strong>
                                 <span className={`payload-status payload-status-${advisory?.status ?? 'pending'}`}>
-                                  {advisory?.status === 'assessed' ? 'Assessed' : advisory ? 'Retry available' : 'Not yet assessed'}
+                                  {advisory?.status === 'assessed'
+                                    ? 'Assessed'
+                                    : permanentlyBlocked
+                                      ? 'Blocked: secret detected'
+                                      : advisory
+                                        ? 'Retry available'
+                                        : attemptedContextIds.has(context.id)
+                                          ? 'Attempted'
+                                          : 'Not yet assessed'}
                                 </span>
                               </label>
                               <details className="payload-code">

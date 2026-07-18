@@ -18,13 +18,21 @@ export interface SkepticProviderResponse {
   quota: SkepticQuota
 }
 
-export type SkepticServiceErrorCode =
-  | 'client-daily-limit'
-  | 'global-daily-limit'
-  | 'global-token-limit'
-  | 'service-unavailable'
-  | 'provider-timeout'
-  | 'provider-error'
+export const SKEPTIC_SERVICE_ERROR_CODES = [
+  'client-daily-limit',
+  'global-daily-limit',
+  'global-token-limit',
+  'service-unavailable',
+  'input-too-large',
+  'invalid-request',
+  'provider-timeout',
+  'provider-configuration',
+  'provider-routing',
+  'provider-rejected',
+  'provider-error',
+] as const
+
+export type SkepticServiceErrorCode = typeof SKEPTIC_SERVICE_ERROR_CODES[number]
 
 export class SkepticServiceError extends Error {
   constructor(

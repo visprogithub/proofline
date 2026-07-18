@@ -13,11 +13,9 @@ describe('operational limits', () => {
       maxAssessmentSourceFiles: 3,
       maxAssessmentContexts: 20,
       maxAssessmentSourceBytes: 262_144,
-      maxHostedAssessments: 8,
+      maxHostedAssessments: 20,
       maxHostedInputChars: 20_000,
       maxAiConcurrency: 2,
-      aiTimeoutMs: 30_000,
-      maxAiRetries: 1,
       maxSemanticHunks: 100,
       maxSemanticHunkChars: 4_000,
       maxEmbeddingModelBytes: 104_857_600,
@@ -35,7 +33,6 @@ describe('operational limits', () => {
   it('rejects non-positive and fractional values', () => {
     expect(() => createOperationalLimits({ maxChangedFiles: 0 })).toThrow()
     expect(() => createOperationalLimits({ maxChangedFiles: 1.5 })).toThrow()
-    expect(() => createOperationalLimits({ maxAiRetries: -1 })).toThrow()
   })
 
   it('formats configured byte limits', () => {

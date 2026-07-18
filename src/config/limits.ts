@@ -1,7 +1,6 @@
 import { z } from 'zod'
 
 const positiveInteger = z.number().int().positive()
-const nonnegativeInteger = z.number().int().nonnegative()
 
 const limitsSchema = z.object({
   maxChangedFiles: positiveInteger,
@@ -16,8 +15,6 @@ const limitsSchema = z.object({
   maxHostedAssessments: positiveInteger,
   maxHostedInputChars: positiveInteger,
   maxAiConcurrency: positiveInteger,
-  aiTimeoutMs: positiveInteger,
-  maxAiRetries: nonnegativeInteger,
   maxSemanticHunks: positiveInteger,
   maxSemanticHunkChars: positiveInteger,
   maxEmbeddingModelBytes: positiveInteger,
@@ -35,11 +32,9 @@ export const DEFAULT_LIMITS: OperationalLimits = Object.freeze({
   maxAssessmentSourceFiles: 3,
   maxAssessmentContexts: 20,
   maxAssessmentSourceBytes: 256 * 1024,
-  maxHostedAssessments: 8,
+  maxHostedAssessments: 20,
   maxHostedInputChars: 20_000,
   maxAiConcurrency: 2,
-  aiTimeoutMs: 30_000,
-  maxAiRetries: 1,
   maxSemanticHunks: 100,
   maxSemanticHunkChars: 4_000,
   maxEmbeddingModelBytes: 100 * 1024 * 1024,

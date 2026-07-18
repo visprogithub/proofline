@@ -6,6 +6,12 @@ function jsonResponse(value: unknown): Response {
   return new Response(JSON.stringify(value), { status: 200 })
 }
 
+function textFileResponse(path: string, text: string): Response {
+  return jsonResponse({
+    type: 'file', path, size: text.length, encoding: 'base64', content: btoa(text),
+  })
+}
+
 describe('public GitHub analysis', () => {
   it('discovers repository requirements and runs the real evidence domains', async () => {
     const specification = btoa('## REQ-101: Export reports')
@@ -29,6 +35,9 @@ describe('public GitHub analysis', () => {
         type: 'file', path: 'docs/requirements.md', size: 28,
         encoding: 'base64', content: specification,
       }))
+      .mockResolvedValueOnce(textFileResponse(
+        'src/export.ts', 'import { save } from "./storage"\nexport function exportReport() { return save() } // REQ-101',
+      ))
 
     const result = await analyzeGitHubChange(
       'https://github.com/acme/tool/pull/2', new GitHubClient(fetcher),
@@ -36,7 +45,8 @@ describe('public GitHub analysis', () => {
 
     expect(result.evidence.sourceLabel).toBe('docs/requirements.md')
     expect(result.evidence.requirements[0]?.state).toBe('test-evidence-found')
-    expect(fetcher).toHaveBeenCalledTimes(5)
+    expect(result.assessmentContexts[0]?.status).toBe('complete')
+    expect(fetcher).toHaveBeenCalledTimes(6)
   })
 
   it('analyzes a single public commit without requiring a pull request', async () => {
@@ -52,6 +62,9 @@ describe('public GitHub analysis', () => {
       .mockResolvedValueOnce(jsonResponse({ check_runs: [{
         id: 8, name: 'REQ-201 commit test', status: 'completed', conclusion: 'success', html_url: null,
       }] }))
+      .mockResolvedValueOnce(textFileResponse(
+        'src/commit.ts', 'export function analyzeCommit() { return true } // REQ-201',
+      ))
 
     const result = await analyzeGitHubChange(
       'https://github.com/acme/tool/commit/abcdef1234567890', new GitHubClient(fetcher),
@@ -60,7 +73,7 @@ describe('public GitHub analysis', () => {
     expect(result.evidence.sourceLabel).toBe('Commit abcdef1 message')
     expect(result.evidence.requirements[0]?.state).toBe('test-evidence-found')
     expect(result.changeLabel).toBe('Open commit')
-    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(fetcher).toHaveBeenCalledTimes(3)
   })
 
   it('analyzes a public comparison and discovers requirements at its head', async () => {
@@ -83,6 +96,9 @@ describe('public GitHub analysis', () => {
         type: 'file', path: 'specs/requirements.md', size: 33,
         encoding: 'base64', content: specification,
       }))
+      .mockResolvedValueOnce(textFileResponse(
+        'src/compare.ts', 'export function compareChanges() { return [] } // REQ-301',
+      ))
 
     const result = await analyzeGitHubChange(
       'https://github.com/acme/tool/compare/main...feature', new GitHubClient(fetcher),
@@ -92,7 +108,7 @@ describe('public GitHub analysis', () => {
     expect(result.evidence.sourceLabel).toBe('specs/requirements.md')
     expect(result.evidence.requirements[0]?.state).toBe('implementation-evidence-only')
     expect(result.changeLabel).toBe('Open comparison')
-    expect(fetcher).toHaveBeenCalledTimes(4)
+    expect(fetcher).toHaveBeenCalledTimes(5)
   })
 
   it('falls back to declared PR change claims when no formal IDs exist', async () => {
@@ -109,6 +125,9 @@ describe('public GitHub analysis', () => {
       }]))
       .mockResolvedValueOnce(jsonResponse({ check_runs: [] }))
       .mockResolvedValueOnce(jsonResponse({ truncated: false, tree: [] }))
+      .mockResolvedValueOnce(textFileResponse(
+        'src/retry.ts', 'export function Retry() { return "show retry button on load failure" }',
+      ))
 
     const result = await analyzeGitHubChange(
       'https://github.com/acme/tool/pull/9', new GitHubClient(fetcher),
@@ -149,6 +168,9 @@ describe('public GitHub analysis', () => {
         type: 'file', path: 'docs/11-terms.md', size: 80,
         encoding: 'base64', content: terms,
       }))
+      .mockResolvedValueOnce(textFileResponse(
+        'package.json', '{"dependencies":{"dependency":"1.0.1"}}',
+      ))
 
     const result = await analyzeGitHubChange(
       'https://github.com/ryokun6/ryos/pull/1871', new GitHubClient(fetcher),
@@ -161,7 +183,7 @@ describe('public GitHub analysis', () => {
       title: 'Update dependency from 1.0.0 to 1.0.1',
     })
     expect(result.evidence.requirements[0]?.state).toBe('suggested-evidence-found')
-    expect(fetcher).toHaveBeenCalledTimes(5)
+    expect(fetcher).toHaveBeenCalledTimes(6)
   })
 
   it('falls back to the commit subject as a declared claim', async () => {
@@ -177,6 +199,9 @@ describe('public GitHub analysis', () => {
       }))
       .mockResolvedValueOnce(jsonResponse({ check_runs: [] }))
       .mockResolvedValueOnce(jsonResponse({ truncated: false, tree: [] }))
+      .mockResolvedValueOnce(textFileResponse(
+        'src/loading.ts', 'export const loading = "backend loading status with retry option"',
+      ))
 
     const result = await analyzeGitHubChange(
       'https://github.com/acme/tool/commit/866ed8cc7e2543368c676c05540d71d7ef29b668',

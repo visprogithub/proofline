@@ -133,10 +133,8 @@ See [architecture](docs/architecture.md), the [formal specification](specs/2026-
 
 Codex was used as the implementation collaborator for requirements shaping, architecture, frontend design, domain logic, tests, GitHub integration, accessibility, and skeptical quality review. Human decisions—including browser-only operation, exact-ID evidence semantics, implementation integrity in the MVP, bounded repository discovery, and the forensic editorial visual direction—were recorded before or during implementation.
 
-Before submission, replace the placeholders below using the actual ChatGPT/Codex client evidence:
-
 - GPT-5.6 session verified: **Yes — 5.6 Sol Light, visually confirmed in the Codex client on 2026-07-17**
-- `/feedback` session ID: **TODO**
+- `/feedback` session ID: 019f6c49-9dc4-78b1-b3fb-c98eac8ba859
 - Public demo URL: **https://proofline-5s39-phi.vercel.app/**
 - Public repository URL: **https://github.com/visprogithub/proofline**
 - Narrated demo video: **TODO**

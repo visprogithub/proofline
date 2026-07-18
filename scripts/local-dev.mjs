@@ -30,6 +30,11 @@ const server = createHttpServer(async (incoming, outgoing) => {
   }
 
   try {
+    const requestController = new AbortController()
+    incoming.once('aborted', () => requestController.abort())
+    outgoing.once('close', () => {
+      if (!outgoing.writableEnded) requestController.abort()
+    })
     const headers = new Headers()
     for (const [name, value] of Object.entries(incoming.headers)) {
       if (Array.isArray(value)) value.forEach((item) => headers.append(name, item))
@@ -39,6 +44,7 @@ const server = createHttpServer(async (incoming, outgoing) => {
     const request = new Request(`http://localhost:${port}${incoming.url}`, {
       method: incoming.method,
       headers,
+      signal: requestController.signal,
       ...(body.length ? { body } : {}),
     })
     const response = await skepticHandler(request)
