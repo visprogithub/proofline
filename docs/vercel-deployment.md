@@ -43,7 +43,7 @@ RATE_LIMIT_SALT
 
 `RATE_LIMIT_SALT` should be a long random value. Do not use a `VITE_` prefix for any of these values; that prefix would expose them to the browser bundle. Optional budget variables are `AI_PER_CLIENT_DAILY_LIMIT`, `AI_GLOBAL_DAILY_LIMIT`, `AI_GLOBAL_DAILY_TOKEN_LIMIT`, `AI_PROVIDER_TIMEOUT_MS`, and `AI_MAX_OUTPUT_TOKENS`. Limits are held only in the warm function instance and reset when Vercel recycles or redeploys it.
 
-For local end-to-end testing, use `npx vercel dev`; `npm run dev` starts only Vite and cannot execute `api/skeptic.ts`.
+For local end-to-end testing, use `npm run dev:full`. It loads `.env.local`, mounts the same skeptic handler used by `api/skeptic.ts`, and serves Vite at `http://localhost:3000` without deploying.
 
 ## 4. Deploy and finish the OAuth redirect
 

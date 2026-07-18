@@ -1,4 +1,4 @@
-import { createInMemoryQuotaStore, createSkepticHandler, type SkepticServerEnvironment } from '../src/server/skeptic-handler'
+import { createInMemoryQuotaStore, createSkepticHandler, type SkepticServerEnvironment } from '../src/server/skeptic-handler.js'
 
 const runtime = globalThis as typeof globalThis & {
   process?: { env?: SkepticServerEnvironment }
@@ -6,4 +6,8 @@ const runtime = globalThis as typeof globalThis & {
 
 const handler = createSkepticHandler({ env: runtime.process?.env ?? {}, quotaStore: createInMemoryQuotaStore() })
 
-export default handler
+export default {
+  fetch(request: Request): Promise<Response> {
+    return handler(request)
+  },
+}

@@ -68,7 +68,7 @@ Proofline is a hosted browser developer tool, not an IDE or ChatGPT plugin. The 
 4. Export the Markdown or JSON report.
 5. Optionally return to the landing page and analyze a public GitHub pull request, commit, or comparison. Anonymous GitHub throttling applies; **Connect GitHub** is optional.
 
-**Local installation:** Clone the repository on Windows, macOS, or Linux with Node.js 24 and npm available, then run `npm ci` followed by `npm run dev` for deterministic features. To exercise `/api/skeptic` locally, use `npx vercel dev` after configuring the server-only variables. Plain Vite does not execute Vercel Functions. No application server, database, paid model API, or private credential is required for the bundled demo or local-import workflow.
+**Local installation:** Clone the repository on Windows, macOS, or Linux with Node.js 24 and npm available, then run `npm ci`. Use `npm run dev` for deterministic browser-only features or `npm run dev:full` to run Vite and the hosted-skeptic API locally from `.env.local`. No deployment is created. No model credential is required for the bundled demo or local-import workflow.
 
 ## How analysis works
 
