@@ -1,8 +1,12 @@
 import { ArrowLeft, Download, ExternalLink, ShieldAlert } from 'lucide-react'
-import { serializeJsonReport, serializeMarkdownReport } from '../domain/evidence/review-report'
+import { useRef, useState } from 'react'
+import { serializeJsonReport, serializeMarkdownReport, serializeMermaidReport } from '../domain/evidence/review-report'
+import type { AdvisoryVerdict } from '../domain/evidence/types'
 import type { AnalysisCase } from './analysis/types'
 import { stateLabel } from './evidence-labels'
 import { EvidenceGraph } from '../components/evidence/EvidenceGraph'
+import { ProoflineSkeptic } from '../integrations/model/proofline-skeptic'
+import { augmentAnalysis } from './analysis/augment-analysis'
 
 interface ReviewWorkspaceProps {
   analysis: AnalysisCase
@@ -18,39 +22,85 @@ function downloadText(filename: string, content: string, type: string): void {
   URL.revokeObjectURL(url)
 }
 
-/** Renders a completed traceability and implementation-integrity case. */
+function needsHumanReview(verdict: AdvisoryVerdict | undefined): boolean {
+  return verdict === 'contradicts' || verdict === 'hollow-stub' || verdict === 'vacuous-test'
+}
+
+/** Renders a completed traceability case with optional, memory-only AI enrichment. */
 export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
-  const usesDeclaredClaims = analysis.analysisBasis === 'declared-claims'
-  const subjectCount = analysis.evidence.requirements.length
+  const [currentAnalysis, setCurrentAnalysis] = useState(analysis)
+  const [showSkeptic, setShowSkeptic] = useState(false)
+  const [consent, setConsent] = useState(false)
+  const [assessing, setAssessing] = useState(false)
+  const [assessmentError, setAssessmentError] = useState<string | null>(null)
+  const assessmentController = useRef<AbortController | null>(null)
+
+  const assessableContexts = currentAnalysis.assessmentContexts.filter(({ status }) => status !== 'insufficient')
+  const advisoryCounts = currentAnalysis.evidence.requirements
+    .flatMap(({ associations }) => associations)
+    .reduce((counts, { advisory }) => {
+      if (advisory) counts[advisory.status] += 1
+      return counts
+    }, { assessed: 0, 'not-assessed': 0 })
+  const usesDeclaredClaims = currentAnalysis.analysisBasis === 'declared-claims'
+  const subjectCount = currentAnalysis.evidence.requirements.length
   const subjectLabel = usesDeclaredClaims
     ? (subjectCount === 1 ? 'claim' : 'claims')
     : (subjectCount === 1 ? 'requirement' : 'requirements')
+
+  async function handleSkeptic(): Promise<void> {
+    setAssessmentError(null)
+    const controller = new AbortController()
+    assessmentController.current = controller
+    setAssessing(true)
+    try {
+      const provider = new ProoflineSkeptic()
+      setCurrentAnalysis(await augmentAnalysis(currentAnalysis, provider, controller.signal))
+      setConsent(false)
+    } catch (caught) {
+      if (!controller.signal.aborted) {
+        setAssessmentError(caught instanceof Error ? caught.message : 'The advisory assessment failed.')
+      }
+    } finally {
+      setAssessing(false)
+      assessmentController.current = null
+    }
+  }
+
+  function reset(): void {
+    assessmentController.current?.abort()
+    onReset()
+  }
+
   return (
     <main className="review-shell">
       <header className="review-masthead">
-        <button className="back-action" type="button" onClick={onReset}>
+        <button className="back-action" type="button" onClick={reset}>
           <ArrowLeft aria-hidden="true" size={17} /> New case
         </button>
         <div className="review-title">
-          <p>{analysis.mode === 'demo' ? 'Sample / synthetic case' : analysis.mode === 'local' ? 'Local / in-memory case' : analysis.repository}</p>
-          <h1>{analysis.title}</h1>
+          <p>{currentAnalysis.mode === 'demo' ? 'Sample / synthetic case' : currentAnalysis.mode === 'local' ? 'Local / in-memory case' : currentAnalysis.repository}</p>
+          <h1>{currentAnalysis.title}</h1>
         </div>
         <div className="export-actions">
           <button type="button" onClick={() => downloadText(
-            'proofline-evidence.md', serializeMarkdownReport(analysis.evidence), 'text/markdown',
+            'proofline-evidence.md', serializeMarkdownReport(currentAnalysis.evidence), 'text/markdown',
           )}><Download aria-hidden="true" size={16} /> Markdown</button>
           <button type="button" onClick={() => downloadText(
-            'proofline-evidence.json', serializeJsonReport(analysis.evidence), 'application/json',
+            'proofline-evidence.json', serializeJsonReport(currentAnalysis.evidence), 'application/json',
           )}><Download aria-hidden="true" size={16} /> JSON</button>
+          <button type="button" onClick={() => downloadText(
+            'proofline-evidence-map.mmd', serializeMermaidReport(currentAnalysis.evidence), 'text/plain',
+          )}><Download aria-hidden="true" size={16} /> Mermaid map</button>
         </div>
       </header>
 
       <section className="case-meta" aria-label="Analysis context">
-        <span>Case {analysis.id}</span>
-        <span>{analysis.evidence.sourceLabel}</span>
-        {analysis.changeUrl && (
-          <a href={analysis.changeUrl} target="_blank" rel="noreferrer">
-            {analysis.changeLabel ?? 'Open GitHub change'} <ExternalLink aria-hidden="true" size={14} />
+        <span>Case {currentAnalysis.id}</span>
+        <span>{currentAnalysis.evidence.sourceLabel}</span>
+        {currentAnalysis.changeUrl && (
+          <a href={currentAnalysis.changeUrl} target="_blank" rel="noreferrer">
+            {currentAnalysis.changeLabel ?? 'Open GitHub change'} <ExternalLink aria-hidden="true" size={14} />
           </a>
         )}
       </section>
@@ -62,8 +112,61 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
         </aside>
       )}
 
+      <section className="skeptic-panel" aria-labelledby="skeptic-title">
+        <div className="skeptic-heading">
+          <div>
+            <span>Optional / advisory</span>
+            <h2 id="skeptic-title">AI evidence skeptic</h2>
+            <p>Challenge hollow, contradictory, or weakly linked evidence without changing deterministic states.</p>
+          </div>
+          <button type="button" onClick={() => setShowSkeptic((shown) => !shown)}>
+            {showSkeptic ? 'Close preview' : 'Preview skeptic'}
+          </button>
+        </div>
+        {(advisoryCounts.assessed > 0 || advisoryCounts['not-assessed'] > 0) && (
+          <p className="skeptic-summary" aria-live="polite">
+            {advisoryCounts.assessed} assessed · {advisoryCounts['not-assessed']} not assessed · deterministic states unchanged
+          </p>
+        )}
+        {showSkeptic && (
+          <div className="skeptic-config">
+            <div className="skeptic-service-note">
+              <strong>Hosted by Proofline</strong>
+              <span>No API key is requested or sent by your browser. Daily per-connection and shared budgets protect the hosted model.</span>
+            </div>
+            <details className="payload-preview">
+              <summary>Preview the {assessableContexts.length} assessable payload excerpt{assessableContexts.length === 1 ? '' : 's'}</summary>
+              {assessableContexts.length ? assessableContexts.map((context) => (
+                <article key={context.id}>
+                  <strong>{context.requirement.id} → {context.artifactLabel}</strong>
+                  <pre>{context.lines.map(({ id, content }) => `${id}: ${content}`).join('\n')}</pre>
+                </article>
+              )) : <p>No strong association has enough source context for hosted assessment.</p>}
+            </details>
+            <label className="skeptic-consent">
+              <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} disabled={assessing} />
+              <span>I approve sending only the previewed excerpts to Proofline's server-side Hugging Face provider for this analysis. Hugging Face may process or retain them under its policy.</span>
+            </label>
+            <div className="skeptic-actions">
+              <button type="button" disabled={!consent || !assessableContexts.length || assessing} onClick={() => void handleSkeptic()}>
+                {assessing ? 'Assessing evidence…' : 'Run advisory skeptic'}
+              </button>
+              {assessing && <button type="button" onClick={() => assessmentController.current?.abort()}>Cancel</button>}
+            </div>
+            {assessmentError && <p className="skeptic-error" role="alert">{assessmentError}</p>}
+            {currentAnalysis.advisoryRun && (
+              <p className={`skeptic-run-status ${currentAnalysis.advisoryRun.code === 'completed' ? '' : 'skeptic-error'}`} role="status">
+                {currentAnalysis.advisoryRun.message}
+                {currentAnalysis.advisoryRun.resetAt && <> Reset: {new Date(currentAnalysis.advisoryRun.resetAt).toLocaleString()}.</>}
+              </p>
+            )}
+            <p className="skeptic-footnote">Proofline does not persist submitted excerpts or model results. Model output may be wrong and never changes deterministic evidence.</p>
+          </div>
+        )}
+      </section>
+
       <EvidenceGraph
-        requirements={analysis.evidence.requirements}
+        requirements={currentAnalysis.evidence.requirements}
         subject={usesDeclaredClaims ? 'claims' : 'requirements'}
       />
 
@@ -74,27 +177,38 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
             <strong>{subjectCount} {subjectLabel}</strong>
           </div>
           <div className="requirement-list">
-            {analysis.evidence.requirements.map((item, index) => (
-              <article className={`requirement-card state-${item.state}`} key={item.requirement.id}>
-                <div className="requirement-index">{String(index + 1).padStart(2, '0')}</div>
-                <div className="requirement-copy">
-                  <p className="requirement-id">{item.requirement.id}</p>
-                  <h3>{item.requirement.title}</h3>
-                  <p>{item.explanation}</p>
-                  <details>
-                    <summary>{item.associations.length} evidence {item.associations.length === 1 ? 'association' : 'associations'}</summary>
-                    {item.associations.length ? (
-                      <ul>{item.associations.map((association) => (
-                        <li key={`${association.artifactId}:${association.rule}`}>
-                          <strong>{association.strength}</strong> · {association.rule} · {association.matchedText.join(', ')}
-                        </li>
-                      ))}</ul>
-                    ) : <p>No associated artifacts were observed.</p>}
-                  </details>
-                </div>
-                <span className="state-chip">{stateLabel(item.state)}</span>
-              </article>
-            ))}
+            {currentAnalysis.evidence.requirements.map((item, index) => {
+              const caveated = item.associations.some(({ advisory }) => needsHumanReview(advisory?.verdict))
+              return (
+                <article className={`requirement-card state-${item.state}${caveated ? ' needs-human-review' : ''}`} key={item.requirement.id}>
+                  <div className="requirement-index">{String(index + 1).padStart(2, '0')}</div>
+                  <div className="requirement-copy">
+                    <p className="requirement-id">{item.requirement.id}</p>
+                    <h3>{item.requirement.title}</h3>
+                    <p>{item.explanation}</p>
+                    <details>
+                      <summary>{item.associations.length} evidence {item.associations.length === 1 ? 'association' : 'associations'}</summary>
+                      {item.associations.length ? (
+                        <ul>{item.associations.map((association) => (
+                          <li key={`${association.artifactId}:${association.rule}`}>
+                            <strong>{association.strength}</strong> · {association.rule} · {association.matchedText.join(', ')}
+                            {association.advisory && (
+                              <div className={`advisory-note advisory-${association.advisory.status}`}>
+                                <strong>{association.advisory.status === 'assessed' ? association.advisory.verdict : 'Not assessed'}</strong>
+                                {association.advisory.rationale && <span>{association.advisory.rationale}</span>}
+                                {association.advisory.reason && <span>{association.advisory.reason.replaceAll('-', ' ')}</span>}
+                                {association.advisory.provenance && <small>{association.advisory.provenance.providerId} · {association.advisory.provenance.modelId} · advisory only</small>}
+                              </div>
+                            )}
+                          </li>
+                        ))}</ul>
+                      ) : <p>No associated artifacts were observed.</p>}
+                    </details>
+                  </div>
+                  <span className="state-chip">{caveated ? 'Needs human review' : stateLabel(item.state)}</span>
+                </article>
+              )
+            })}
           </div>
         </section>
 
@@ -104,9 +218,9 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
             <ShieldAlert aria-hidden="true" size={24} />
           </div>
           <p className="integrity-intro">
-            {analysis.integrity.scannedAddedLines} added lines scanned. Findings describe observed syntax, not intent.
+            {currentAnalysis.integrity.scannedAddedLines} added lines scanned. Findings describe observed syntax, not intent.
           </p>
-          {analysis.integrity.findings.length ? analysis.integrity.findings.map((finding) => (
+          {currentAnalysis.integrity.findings.length ? currentAnalysis.integrity.findings.map((finding) => (
             <article className={`integrity-finding ${finding.confidence}`} key={finding.id}>
               <div className="finding-label"><span>{finding.confidence}</span><code>{finding.path}:{finding.line}</code></div>
               <h3>{finding.summary}</h3>
@@ -118,7 +232,7 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
         </aside>
       </div>
 
-      <footer className="case-disclaimer">{analysis.evidence.disclaimer}</footer>
+      <footer className="case-disclaimer">{currentAnalysis.evidence.disclaimer}</footer>
     </main>
   )
 }

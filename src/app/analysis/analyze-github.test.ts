@@ -126,13 +126,19 @@ describe('public GitHub analysis', () => {
     const fetcher = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse({
         title: 'Bump the minor-and-patch group with 22 updates',
-        body: 'Bumps the minor-and-patch dependency group with 22 updates.',
+        body: [
+          'Bumps the minor-and-patch dependency group with 22 updates.',
+          '',
+          '| Package | From | To |',
+          '| --- | --- | --- |',
+          '| [dependency](https://example.test/dependency) | 1.0.0 | 1.0.1 |',
+        ].join('\n'),
         html_url: 'https://github.com/ryokun6/ryos/pull/1871', changed_files: 1,
         head: { sha: 'dependabothead', ref: 'dependabot/npm_and_yarn' }, base: { ref: 'main' },
       }))
       .mockResolvedValueOnce(jsonResponse([{
         sha: 'lockfile', filename: 'package.json', status: 'modified', additions: 1, deletions: 1,
-        patch: '@@ -1 +1 @@\n-"dependency": "1.0.0"\n+"dependency": "1.0.1" // minor-and-patch update',
+        patch: '@@ -1 +1 @@\n-"dependency": "1.0.0"\n+"dependency": "1.0.1"',
       }]))
       .mockResolvedValueOnce(jsonResponse({ check_runs: [] }))
       .mockResolvedValueOnce(jsonResponse({ truncated: false, tree: [{
@@ -152,6 +158,7 @@ describe('public GitHub analysis', () => {
     expect(result.evidence.sourceLabel).toContain('Declared change claims')
     expect(result.evidence.requirements[0]?.requirement).toMatchObject({
       id: 'CLAIM-001', identifierOrigin: 'generated',
+      title: 'Update dependency from 1.0.0 to 1.0.1',
     })
     expect(result.evidence.requirements[0]?.state).toBe('suggested-evidence-found')
     expect(fetcher).toHaveBeenCalledTimes(5)

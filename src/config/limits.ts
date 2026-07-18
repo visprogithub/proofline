@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 const positiveInteger = z.number().int().positive()
+const nonnegativeInteger = z.number().int().nonnegative()
 
 const limitsSchema = z.object({
   maxChangedFiles: positiveInteger,
@@ -8,6 +9,18 @@ const limitsSchema = z.object({
   maxCandidateBytes: positiveInteger,
   maxLocalImportBytes: positiveInteger,
   maxDeclaredClaims: positiveInteger,
+  maxAssessmentContextChars: positiveInteger,
+  maxAssessmentSourceFiles: positiveInteger,
+  maxAssessmentContexts: positiveInteger,
+  maxAssessmentSourceBytes: positiveInteger,
+  maxHostedAssessments: positiveInteger,
+  maxHostedInputChars: positiveInteger,
+  maxAiConcurrency: positiveInteger,
+  aiTimeoutMs: positiveInteger,
+  maxAiRetries: nonnegativeInteger,
+  maxSemanticHunks: positiveInteger,
+  maxSemanticHunkChars: positiveInteger,
+  maxEmbeddingModelBytes: positiveInteger,
 })
 
 export type OperationalLimits = Readonly<z.infer<typeof limitsSchema>>
@@ -18,6 +31,18 @@ export const DEFAULT_LIMITS: OperationalLimits = Object.freeze({
   maxCandidateBytes: 256 * 1024,
   maxLocalImportBytes: 5 * 1024 * 1024,
   maxDeclaredClaims: 12,
+  maxAssessmentContextChars: 12_000,
+  maxAssessmentSourceFiles: 3,
+  maxAssessmentContexts: 20,
+  maxAssessmentSourceBytes: 256 * 1024,
+  maxHostedAssessments: 8,
+  maxHostedInputChars: 20_000,
+  maxAiConcurrency: 2,
+  aiTimeoutMs: 30_000,
+  maxAiRetries: 1,
+  maxSemanticHunks: 100,
+  maxSemanticHunkChars: 4_000,
+  maxEmbeddingModelBytes: 100 * 1024 * 1024,
 })
 
 /**

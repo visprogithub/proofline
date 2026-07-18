@@ -68,6 +68,7 @@ export function parseJunit(
       return {
         id: `junit:${suiteIndex}:${caseIndex}`,
         kind: 'test' as const,
+        role: 'test-execution' as const,
         label,
         content: details,
         outcome: outcomeFor(testcase),

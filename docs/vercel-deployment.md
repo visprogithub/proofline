@@ -1,6 +1,6 @@
 # Vercel deployment from GitHub
 
-Proofline is a static Vite application. The committed `vercel.json` pins the install and build commands, publishes `dist`, adds the SPA fallback rewrite, and supplies baseline browser-security headers.
+Proofline is a Vite application with one optional Vercel Function for quota-protected hosted skeptic assessments. The committed `vercel.json` pins the install and build commands, publishes `dist`, configures the function ceiling, adds the SPA fallback rewrite, and supplies baseline browser-security headers.
 
 ## 1. Import the repository
 
@@ -31,7 +31,23 @@ Use the values from the Supabase project settings. Apply them to **Production** 
 
 Deployments built before an environment-variable change do not receive the new value, so redeploy after adding or changing either variable.
 
-## 3. Deploy and finish the OAuth redirect
+## 3. Configure the optional hosted skeptic
+
+First run `supabase/migrations/202607180001_proofline_ai_quota.sql` in the Supabase SQL editor. Then add these as server-only Vercel environment variables:
+
+```text
+HF_TOKEN
+HF_MODEL
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+RATE_LIMIT_SALT
+```
+
+`RATE_LIMIT_SALT` should be a long random value. Do not use a `VITE_` prefix for any of these values; that prefix would expose them to the browser bundle. Optional budget variables are `AI_PER_CLIENT_DAILY_LIMIT`, `AI_GLOBAL_DAILY_LIMIT`, `AI_GLOBAL_DAILY_TOKEN_LIMIT`, `AI_PROVIDER_TIMEOUT_MS`, and `AI_MAX_OUTPUT_TOKENS`.
+
+For local end-to-end testing, use `npx vercel dev`; `npm run dev` starts only Vite and cannot execute `api/skeptic.ts`.
+
+## 4. Deploy and finish the OAuth redirect
 
 1. Select **Deploy**. Vercel will build the production site from the connected GitHub repository.
 2. Copy the resulting production URL, such as `https://proofline.example.vercel.app`.
@@ -48,12 +64,13 @@ Deployments built before an environment-variable change do not receive the new v
 
 Preview deployments use different hostnames. Leave GitHub sign-in disabled on previews initially, or add a narrowly scoped Supabase redirect wildcard for the project's Vercel preview domains before enabling the variables in Vercel's Preview environment.
 
-## 4. Verify the production deployment
+## 5. Verify the production deployment
 
 1. Open the production URL in a private browser window and run the bundled evidence dossier.
 2. Analyze a public commit anonymously.
 3. Select **Connect GitHub**, complete OAuth, and confirm Proofline shows the authenticated allowance.
 4. Analyze a public pull request or commit while connected.
 5. Open a non-root path directly and confirm the SPA loads rather than returning a Vercel 404.
+6. With hosted skeptic variables configured, rerun an analysis with assessable hunks, preview the payload, consent, and verify the UI shows assessed/not-assessed counts plus remaining daily allowance or a clear limit message.
 
-No Vercel Function, database, or server-side secret is required for this deployment.
+The deterministic demo and local import work without the optional function. Hosted skeptic assessments require the function, quota migration, and server-only secrets above.
