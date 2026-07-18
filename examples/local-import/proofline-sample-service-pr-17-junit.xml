@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="proofline-local-demo" tests="2" failures="1">
+  <testsuite name="evidence-workspace" tests="2" failures="1">
+    <testcase classname="report-export" name="REQ-101 downloads Markdown and JSON reports" time="0.018" />
+    <testcase classname="local-import" name="REQ-103 rejects oversized files with guidance" time="0.011">
+      <failure message="Expected the configured limit in the error guidance">The import was rejected, but the displayed guidance omitted the configured size limit.</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

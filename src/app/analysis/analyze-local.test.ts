@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeLocalBundle } from './analyze-local'
+import exampleRequirements from '../../../examples/local-import/proofline-sample-service-pr-17-requirements.md?raw'
+import exampleDiff from '../../../examples/local-import/proofline-sample-service-pr-17.patch?raw'
+import exampleJunit from '../../../examples/local-import/proofline-sample-service-pr-17-junit.xml?raw'
 
 describe('local evidence analysis', () => {
   it('PL-104 analyzes uploaded requirements, diff, and JUnit through the real domains', () => {
@@ -36,5 +39,33 @@ describe('local evidence analysis', () => {
       requirements: { name: 'requirements.md', text: '## REQ-101: Export' },
       diff: { name: 'notes.patch', text: 'This is not a unified diff.' },
     })).toThrow('notes.patch is empty or contains no unified diff hunks')
+  })
+
+  it('keeps the checked-in local-import demo valid and representative', () => {
+    const result = analyzeLocalBundle({
+      requirements: {
+        name: 'proofline-sample-service-pr-17-requirements.md',
+        text: exampleRequirements,
+      },
+      diff: {
+        name: 'proofline-sample-service-pr-17.patch',
+        text: exampleDiff,
+      },
+      junit: {
+        name: 'proofline-sample-service-pr-17-junit.xml',
+        text: exampleJunit,
+      },
+    })
+
+    expect(result.evidence.requirements.map(({ state }) => state)).toEqual([
+      'test-evidence-found',
+      'implementation-evidence-only',
+      'failing-test-evidence',
+      'ambiguous-evidence',
+      'no-evidence-found',
+    ])
+    expect(result.integrity.findings.map(({ rule }) => rule)).toEqual(
+      expect.arrayContaining(['unfinished-marker', 'hardcoded-mock-response']),
+    )
   })
 })

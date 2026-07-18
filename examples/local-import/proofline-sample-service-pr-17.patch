@@ -1,0 +1,52 @@
+diff --git a/src/report.ts b/src/report.ts
+new file mode 100644
+index 0000000..4f0d102
+--- /dev/null
++++ b/src/report.ts
+@@ -0,0 +1,9 @@
++// REQ-101: Export evidence reports.
++export function downloadEvidenceReport(format: 'markdown' | 'json'): string {
++  // TODO: replace this canned response with the generated report.
++  const mockResponse = format === 'json'
++    ? '{"status":"ready"}'
++    : '# Evidence report\n\nReady.'
++
++  return mockResponse
++}
+diff --git a/src/reset.ts b/src/reset.ts
+new file mode 100644
+index 0000000..e392fe1
+--- /dev/null
++++ b/src/reset.ts
+@@ -0,0 +1,5 @@
++// REQ-102: Clear analysis data.
++export function startNewCase(state: { analysis: unknown }): void {
++  state.analysis = null
++  sessionStorage.removeItem('proofline:analysis')
++}
+diff --git a/src/import-limits.ts b/src/import-limits.ts
+new file mode 100644
+index 0000000..37dbf8d
+--- /dev/null
++++ b/src/import-limits.ts
+@@ -0,0 +1,8 @@
++const MAX_IMPORT_BYTES = 5 * 1024 * 1024
++
++// REQ-103: Reject oversized imports.
++export function validateImportSize(file: File): void {
++  if (file.size > MAX_IMPORT_BYTES) {
++    throw new Error('This file exceeds the 5 MB local import limit.')
++  }
++}
+diff --git a/src/status-announcer.ts b/src/status-announcer.ts
+new file mode 100644
+index 0000000..af50487
+--- /dev/null
++++ b/src/status-announcer.ts
+@@ -0,0 +1,7 @@
++export function announceAnalysisProgress(message: string): void {
++  const liveRegion = document.querySelector('[aria-live="polite"]')
++  if (liveRegion) {
++    liveRegion.textContent = `Analysis status: ${message}`
++  }
++}

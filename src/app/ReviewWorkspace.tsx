@@ -9,6 +9,7 @@ import { stateLabel } from './evidence-labels'
 import { EvidenceGraph } from '../components/evidence/EvidenceGraph'
 import { ProoflineSkeptic } from '../integrations/model/proofline-skeptic'
 import { augmentAnalysis } from './analysis/augment-analysis'
+import { exportFilenameBase } from './analysis/export-filename'
 
 interface ReviewWorkspaceProps {
   analysis: AnalysisCase
@@ -98,6 +99,7 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
       return counts
     }, { assessed: 0, 'not-assessed': 0 })
   const usesDeclaredClaims = currentAnalysis.analysisBasis === 'declared-claims'
+  const exportBase = exportFilenameBase(currentAnalysis)
   const subjectCount = currentAnalysis.evidence.requirements.length
   const subjectLabel = usesDeclaredClaims
     ? (subjectCount === 1 ? 'claim' : 'claims')
@@ -190,13 +192,13 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
         </div>
         <div className="export-actions">
           <button type="button" onClick={() => downloadText(
-            'proofline-evidence.md', serializeMarkdownReport(currentAnalysis.evidence), 'text/markdown',
+            `${exportBase}-evidence.md`, serializeMarkdownReport(currentAnalysis.evidence), 'text/markdown',
           )}><Download aria-hidden="true" size={16} /> Markdown</button>
           <button type="button" onClick={() => downloadText(
-            'proofline-evidence.json', serializeJsonReport(currentAnalysis.evidence), 'application/json',
+            `${exportBase}-evidence.json`, serializeJsonReport(currentAnalysis.evidence), 'application/json',
           )}><Download aria-hidden="true" size={16} /> JSON</button>
           <button type="button" onClick={() => downloadText(
-            'proofline-evidence-map.mmd', serializeMermaidReport(currentAnalysis.evidence), 'text/plain',
+            `${exportBase}-evidence-map.mmd`, serializeMermaidReport(currentAnalysis.evidence), 'text/plain',
           )}><Download aria-hidden="true" size={16} /> Mermaid map</button>
         </div>
       </header>
