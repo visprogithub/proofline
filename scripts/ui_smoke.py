@@ -18,6 +18,8 @@ def inspect_page(page, screenshot_name: str) -> None:
     assert page.get_by_role("button", name="Analyze evidence").is_visible()
     assert page.get_by_role("button", name="Try the evidence dossier").is_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
+    if page.viewport_size and page.viewport_size["width"] >= 1000:
+        assert page.evaluate("document.documentElement.scrollHeight <= window.innerHeight")
     assert not errors, f"Browser console errors: {errors}"
 
     page.screenshot(path=str(OUTPUT / screenshot_name), full_page=True)

@@ -86,7 +86,7 @@ button { cursor: pointer; }
   grid-template-columns: minmax(0, 1.1fr) minmax(390px, 0.9fr);
   gap: clamp(42px, 7vw, 110px);
   align-items: start;
-  padding: clamp(28px, 4vh, 44px) 7vw clamp(36px, 5vh, 64px);
+  padding: clamp(20px, 3vh, 32px) 7vw clamp(16px, 2vh, 28px);
   position: relative;
 }
 
@@ -127,7 +127,7 @@ h1 em {
   color: #42423c;
 }
 
-.pr-form { margin-top: 36px; }
+.pr-form { margin-top: 28px; }
 .pr-form label { display: block; margin-bottom: 10px; font-size: 0.82rem; font-weight: 650; }
 .auth-rail { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; padding: 11px 12px; border: 1px solid var(--ink); background: rgba(240,234,220,.72); box-shadow: 3px 3px 0 rgba(32,32,28,.2); }
 .auth-copy { display: grid; gap: 3px; min-width: 0; }
@@ -178,7 +178,7 @@ h1 em {
 
 .input-frame button:hover { color: var(--ink); background: var(--acid); }
 
-.secondary-actions { display: flex; align-items: center; gap: 18px; margin-top: 25px; color: var(--muted); font-size: 0.82rem; }
+.secondary-actions { display: flex; align-items: center; gap: 18px; margin-top: 20px; color: var(--muted); font-size: 0.82rem; }
 .text-action { display: inline-flex; gap: 9px; align-items: center; padding: 0; border: 0; border-bottom: 1px solid var(--ink); color: var(--ink); background: none; font-weight: 650; }
 .unavailable-action { padding: 0; border: 0; background: none; color: var(--muted); font-size: 0.78rem; }
 .unavailable-action:disabled { cursor: not-allowed; opacity: 0.7; text-decoration: line-through; }
@@ -197,7 +197,8 @@ h1 em {
 .local-analyze-action { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 9px 12px; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); font-size: .7rem; font-weight: 700; }
 .local-analyze-action:disabled { cursor: not-allowed; opacity: .45; }
 .input-frame button:disabled { cursor: wait; opacity: 0.78; }
-.status-region { min-height: 44px; max-width: 780px; font-size: 0.8rem; }
+.status-region { max-width: 780px; font-size: 0.8rem; }
+.status-region:empty { display: none; }
 .error-message { padding: 10px 12px; border-left: 4px solid var(--signal); background: rgba(242, 83, 36, 0.1); }
 
 .evidence-preview {
