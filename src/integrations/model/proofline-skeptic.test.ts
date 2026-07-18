@@ -60,4 +60,29 @@ describe('Proofline skeptic client', () => {
       expect.objectContaining({ code: 'client-daily-limit', message: 'Daily limit reached.' }),
     )
   })
+
+  it('bounds unusually large evidence before sending it to the hosted endpoint', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      result: { verdict: 'substantively-related', rationale: 'Related.', citedLineIds: [] },
+      provenance: { providerId: 'huggingface', modelId: 'test/model', promptVersion: 'skeptic-v1' },
+      quota: { remainingToday: 7, resetAt: '2026-07-19T00:00:00.000Z' },
+    }), { status: 200 }))
+    const oversized: AssessmentContext = {
+      ...context,
+      requirement: {
+        ...context.requirement,
+        title: 'title'.repeat(1_000),
+        acceptanceCriteria: Array.from({ length: 20 }, () => 'criterion'.repeat(1_000)),
+      },
+      lines: Array.from({ length: 250 }, (_, index) => ({
+        id: `line-${index}-${'x'.repeat(200)}`,
+        content: 'const value = "quoted";'.repeat(200),
+      })),
+    }
+
+    await new ProoflineSkeptic(fetcher).assess(oversized)
+    const body = fetcher.mock.calls[0]?.[1]?.body
+    expect(typeof body).toBe('string')
+    expect((body as string).length).toBeLessThanOrEqual(18_000)
+  })
 })

@@ -38,6 +38,7 @@ export async function augmentAnalysis(
   analysis: AnalysisCase,
   provider: SkepticProvider,
   signal?: AbortSignal,
+  selectedContextIds?: ReadonlySet<string>,
   limits: OperationalLimits = DEFAULT_LIMITS,
 ): Promise<AnalysisCase> {
   const contexts = [...analysis.assessmentContexts].sort((left, right) => priority(left) - priority(right))
@@ -48,6 +49,7 @@ export async function augmentAnalysis(
   let latestQuota: SkepticQuota | undefined
 
   for (const context of contexts) {
+    if (selectedContextIds && !selectedContextIds.has(context.id)) continue
     if (context.status === 'insufficient') {
       assessments.set(context.id, notAssessed('insufficient-context', context))
     } else if (scanOutboundText(contextText(context)).length) {

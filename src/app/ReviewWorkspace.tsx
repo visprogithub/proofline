@@ -1,7 +1,9 @@
 import { ArrowLeft, Download, ExternalLink, ShieldAlert } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { DEFAULT_LIMITS } from '../config/limits'
+import type { AssessmentContext } from '../domain/evidence/assessment-context'
 import { serializeJsonReport, serializeMarkdownReport, serializeMermaidReport } from '../domain/evidence/review-report'
-import type { AdvisoryVerdict } from '../domain/evidence/types'
+import type { AdvisoryAssessment, AdvisoryVerdict } from '../domain/evidence/types'
 import type { AnalysisCase } from './analysis/types'
 import { stateLabel } from './evidence-labels'
 import { EvidenceGraph } from '../components/evidence/EvidenceGraph'
@@ -11,6 +13,34 @@ import { augmentAnalysis } from './analysis/augment-analysis'
 interface ReviewWorkspaceProps {
   analysis: AnalysisCase
   onReset: () => void
+}
+
+const SKEPTIC_CONSENT_KEY = 'proofline:hosted-skeptic-consent:v1'
+
+function persistedConsent(): boolean {
+  try {
+    return window.localStorage.getItem(SKEPTIC_CONSENT_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function contextAssociationKey(context: AssessmentContext): string {
+  return `${context.requirement.id}:${context.artifactId}:${context.association.hunkId ?? 'artifact'}`
+}
+
+function ClaimCheckbox({ checked, mixed, label, disabled, onChange }: {
+  checked: boolean
+  mixed: boolean
+  label: string
+  disabled: boolean
+  onChange: () => void
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = mixed
+  }, [mixed])
+  return <input ref={ref} type="checkbox" checked={checked} aria-label={label} disabled={disabled} onChange={onChange} />
 }
 
 function downloadText(filename: string, content: string, type: string): void {
@@ -30,12 +60,36 @@ function needsHumanReview(verdict: AdvisoryVerdict | undefined): boolean {
 export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
   const [currentAnalysis, setCurrentAnalysis] = useState(analysis)
   const [showSkeptic, setShowSkeptic] = useState(false)
-  const [consent, setConsent] = useState(false)
+  const [consent, setConsent] = useState(persistedConsent)
+  const [selectedContextIds, setSelectedContextIds] = useState<Set<string>>(() => new Set())
   const [assessing, setAssessing] = useState(false)
   const [assessmentError, setAssessmentError] = useState<string | null>(null)
   const assessmentController = useRef<AbortController | null>(null)
 
   const assessableContexts = currentAnalysis.assessmentContexts.filter(({ status }) => status !== 'insufficient')
+  const advisoryByContextId = useMemo(() => {
+    const advisoryByAssociation = new Map<string, AdvisoryAssessment>()
+    for (const item of currentAnalysis.evidence.requirements) {
+      for (const association of item.associations) {
+        if (association.advisory) {
+          advisoryByAssociation.set(`${item.requirement.id}:${association.artifactId}:${association.hunkId ?? 'artifact'}`, association.advisory)
+        }
+      }
+    }
+    return new Map(currentAnalysis.assessmentContexts.map((context) => [
+      context.id,
+      advisoryByAssociation.get(contextAssociationKey(context)),
+    ]))
+  }, [currentAnalysis])
+  const contextsByClaim = useMemo(() => {
+    const groups = new Map<string, AssessmentContext[]>()
+    for (const context of assessableContexts) {
+      const group = groups.get(context.requirement.id) ?? []
+      group.push(context)
+      groups.set(context.requirement.id, group)
+    }
+    return Array.from(groups.entries())
+  }, [assessableContexts])
   const advisoryCounts = currentAnalysis.evidence.requirements
     .flatMap(({ associations }) => associations)
     .reduce((counts, { advisory }) => {
@@ -55,8 +109,8 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
     setAssessing(true)
     try {
       const provider = new ProoflineSkeptic()
-      setCurrentAnalysis(await augmentAnalysis(currentAnalysis, provider, controller.signal))
-      setConsent(false)
+      setCurrentAnalysis(await augmentAnalysis(currentAnalysis, provider, controller.signal, selectedContextIds))
+      setSelectedContextIds(new Set())
     } catch (caught) {
       if (!controller.signal.aborted) {
         setAssessmentError(caught instanceof Error ? caught.message : 'The advisory assessment failed.')
@@ -65,6 +119,46 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
       setAssessing(false)
       assessmentController.current = null
     }
+  }
+
+  function updateConsent(approved: boolean): void {
+    setConsent(approved)
+    try {
+      if (approved) window.localStorage.setItem(SKEPTIC_CONSENT_KEY, 'true')
+      else window.localStorage.removeItem(SKEPTIC_CONSENT_KEY)
+    } catch {
+      // Consent still applies to this tab when browser storage is unavailable.
+    }
+  }
+
+  function toggleContext(contextId: string): void {
+    setSelectedContextIds((current) => {
+      const next = new Set(current)
+      if (next.has(contextId)) next.delete(contextId)
+      else if (next.size < DEFAULT_LIMITS.maxHostedAssessments) next.add(contextId)
+      return next
+    })
+  }
+
+  function toggleClaim(contexts: AssessmentContext[]): void {
+    setSelectedContextIds((current) => {
+      const next = new Set(current)
+      const hasSelectedContext = contexts.some(({ id }) => next.has(id))
+      if (hasSelectedContext) {
+        for (const { id } of contexts) next.delete(id)
+      } else {
+        for (const { id } of contexts) {
+          if (next.size >= DEFAULT_LIMITS.maxHostedAssessments) break
+          next.add(id)
+        }
+      }
+      return next
+    })
+  }
+
+  function selectNextBatch(): void {
+    const candidates = assessableContexts.filter(({ id }) => advisoryByContextId.get(id)?.status !== 'assessed')
+    setSelectedContextIds(new Set(candidates.slice(0, DEFAULT_LIMITS.maxHostedAssessments).map(({ id }) => id)))
   }
 
   function reset(): void {
@@ -134,25 +228,68 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
               <strong>Hosted by Proofline</strong>
               <span>No API key is requested or sent by your browser. Best-effort per-connection and warm-instance budgets protect the hosted model.</span>
             </div>
-            <details className="payload-preview">
-              <summary>Preview the {assessableContexts.length} assessable payload excerpt{assessableContexts.length === 1 ? '' : 's'}</summary>
-              {assessableContexts.length ? assessableContexts.map((context) => (
-                <article key={context.id}>
-                  <strong>{context.requirement.id} → {context.artifactLabel}</strong>
-                  <pre>{context.lines.map(({ id, content }) => `${id}: ${content}`).join('\n')}</pre>
-                </article>
-              )) : <p>No strong association has enough source context for hosted assessment.</p>}
+            <details className="payload-preview" open>
+              <summary>Choose from {assessableContexts.length} assessable payload excerpt{assessableContexts.length === 1 ? '' : 's'}</summary>
+              {assessableContexts.length ? (
+                <div className="payload-queue">
+                  <div className="payload-queue-toolbar">
+                    <span><strong>{selectedContextIds.size}</strong> selected · {DEFAULT_LIMITS.maxHostedAssessments} maximum per run</span>
+                    <div>
+                      <button type="button" disabled={assessing} onClick={selectNextBatch}>Select next batch</button>
+                      <button type="button" disabled={assessing || !selectedContextIds.size} onClick={() => setSelectedContextIds(new Set())}>Clear</button>
+                    </div>
+                  </div>
+                  {contextsByClaim.map(([claimId, contexts]) => {
+                    const selectedInClaim = contexts.filter(({ id }) => selectedContextIds.has(id)).length
+                    return (
+                      <section className="payload-claim" key={claimId}>
+                        <label className="payload-claim-heading">
+                          <ClaimCheckbox
+                            checked={selectedInClaim === contexts.length}
+                            mixed={selectedInClaim > 0 && selectedInClaim < contexts.length}
+                            label={`Select payloads for ${claimId}`}
+                            disabled={assessing}
+                            onChange={() => toggleClaim(contexts)}
+                          />
+                          <strong>{claimId}</strong>
+                          <span>{selectedInClaim}/{contexts.length} selected</span>
+                        </label>
+                        {contexts.map((context) => {
+                          const advisory = advisoryByContextId.get(context.id)
+                          const selected = selectedContextIds.has(context.id)
+                          const selectionFull = selectedContextIds.size >= DEFAULT_LIMITS.maxHostedAssessments
+                          return (
+                            <article className={selected ? 'payload-selected' : ''} key={context.id}>
+                              <label className="payload-item-heading">
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Select ${context.requirement.id} payload ${context.artifactLabel}`}
+                                  checked={selected}
+                                  disabled={assessing || (!selected && selectionFull)}
+                                  onChange={() => toggleContext(context.id)}
+                                />
+                                <strong>{context.artifactLabel}</strong>
+                                <span className={`payload-status payload-status-${advisory?.status ?? 'pending'}`}>
+                                  {advisory?.status === 'assessed' ? 'Assessed' : advisory ? 'Retry available' : 'Not yet assessed'}
+                                </span>
+                              </label>
+                              <pre>{context.lines.map(({ id, content }) => `${id}: ${content}`).join('\n')}</pre>
+                            </article>
+                          )
+                        })}
+                      </section>
+                    )
+                  })}
+                </div>
+              ) : <p>No strong association has enough source context for hosted assessment.</p>}
             </details>
-            {assessableContexts.length > 8 && (
-              <p className="skeptic-footnote">This run will assess up to 8 of the {assessableContexts.length} eligible excerpts; remaining excerpts will be marked not assessed.</p>
-            )}
             <label className="skeptic-consent">
-              <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} disabled={assessing} />
-              <span>I approve sending only the previewed excerpts to Proofline's server-side Hugging Face provider for this analysis. Hugging Face may process or retain them under its policy.</span>
+              <input type="checkbox" checked={consent} onChange={(event) => updateConsent(event.target.checked)} disabled={assessing} />
+              <span>Remember my approval to send only excerpts I select to Proofline's server-side Hugging Face provider. Hugging Face may process or retain them under its policy.</span>
             </label>
             <div className="skeptic-actions">
-              <button type="button" disabled={!consent || !assessableContexts.length || assessing} onClick={() => void handleSkeptic()}>
-                {assessing ? 'Assessing evidence…' : 'Run advisory skeptic'}
+              <button type="button" disabled={!consent || !selectedContextIds.size || assessing} onClick={() => void handleSkeptic()}>
+                {assessing ? 'Assessing evidence…' : `Run selected excerpts (${selectedContextIds.size})`}
               </button>
               {assessing && <button type="button" onClick={() => assessmentController.current?.abort()}>Cancel</button>}
             </div>

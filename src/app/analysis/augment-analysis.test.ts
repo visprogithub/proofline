@@ -45,4 +45,23 @@ describe('advisory analysis augmentation', () => {
       status: 'not-assessed', reason: 'secret-detected',
     })
   })
+
+  it('assesses only explicitly selected contexts', async () => {
+    const before = localCase()
+    const assess = vi.fn((context: AssessmentContext) => Promise.resolve({
+      result: { verdict: 'substantively-related', rationale: 'Related.', citedLineIds: [context.lines[0]?.id ?? 'missing'] },
+      provenance: { providerId: 'fake', modelId: 'fake', promptVersion: 'v1' },
+      quota: { remainingToday: 7, resetAt: '2026-07-19T00:00:00.000Z' },
+    }))
+
+    const skipped = await augmentAnalysis(before, { assess }, undefined, new Set())
+    expect(assess).not.toHaveBeenCalled()
+    expect(skipped.evidence.requirements[0]?.associations[0]?.advisory).toBeUndefined()
+
+    const contextId = before.assessmentContexts[0]?.id
+    if (!contextId) throw new Error('Expected an assessment context.')
+    const assessed = await augmentAnalysis(skipped, { assess }, undefined, new Set([contextId]))
+    expect(assess).toHaveBeenCalledTimes(1)
+    expect(assessed.evidence.requirements[0]?.associations[0]?.advisory?.status).toBe('assessed')
+  })
 })

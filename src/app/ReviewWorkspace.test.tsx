@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { analyzeLocalBundle } from './analysis/analyze-local'
 import { ReviewWorkspace } from './ReviewWorkspace'
 
@@ -15,18 +15,29 @@ function assessableCase() {
 }
 
 describe('review workspace advisory and export controls', () => {
-  it('offers Mermaid export and requires explicit hosted-model consent without requesting a key', async () => {
+  beforeEach(() => window.localStorage.clear())
+
+  it('offers selective payload controls and remembers hosted-model consent', async () => {
     const user = userEvent.setup()
-    render(<ReviewWorkspace analysis={assessableCase()} onReset={vi.fn()} />)
+    const view = render(<ReviewWorkspace analysis={assessableCase()} onReset={vi.fn()} />)
 
     expect(screen.getByRole('button', { name: /Mermaid map/i })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Preview skeptic/i }))
     expect(screen.getByText(/No API key is requested/i)).toBeInTheDocument()
     expect(screen.queryByLabelText(/API key/i)).not.toBeInTheDocument()
-    expect(screen.getByText(/Preview the 1 assessable payload excerpt/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Run advisory skeptic/i })).toBeDisabled()
+    expect(screen.getByText(/Choose from 1 assessable payload excerpt/i)).toBeInTheDocument()
+    const runButton = screen.getByRole('button', { name: /Run selected excerpts/i })
+    expect(runButton).toBeDisabled()
 
-    await user.click(screen.getByRole('checkbox'))
-    expect(screen.getByRole('button', { name: /Run advisory skeptic/i })).toBeEnabled()
+    await user.click(screen.getByRole('checkbox', { name: /Select REQ-101 payload/i }))
+    expect(runButton).toBeDisabled()
+    await user.click(screen.getByRole('checkbox', { name: /Remember my approval/i }))
+    expect(runButton).toBeEnabled()
+    expect(window.localStorage.getItem('proofline:hosted-skeptic-consent:v1')).toBe('true')
+
+    view.unmount()
+    render(<ReviewWorkspace analysis={assessableCase()} onReset={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /Preview skeptic/i }))
+    expect(screen.getByRole('checkbox', { name: /Remember my approval/i })).toBeChecked()
   })
 })

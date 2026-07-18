@@ -28,6 +28,55 @@ const errorSchema = z.object({
   resetAt: z.string().optional(),
 })
 
+const MAX_SERIALIZED_REQUEST_CHARS = 18_000
+
+function truncate(value: string, limit: number): string {
+  return value.length <= limit ? value : `${value.slice(0, Math.max(limit - 1, 0))}…`
+}
+
+function hostedContext(context: AssessmentContext) {
+  const compact = {
+    schemaVersion: context.schemaVersion,
+    id: truncate(context.id, 500),
+    requirement: {
+      id: truncate(context.requirement.id, 100),
+      title: truncate(context.requirement.title, 1_000),
+      acceptanceCriteria: context.requirement.acceptanceCriteria
+        .slice(0, 8)
+        .map((criterion) => truncate(criterion, 750)),
+    },
+    artifactLabel: truncate(context.artifactLabel, 1_000),
+    artifactRole: context.artifactRole,
+    status: context.status,
+    lines: context.lines.map((line) => ({
+      ...line,
+      id: truncate(line.id, 200),
+      content: truncate(line.content, 4_000),
+    })),
+  }
+
+  if (JSON.stringify({ context: compact }).length <= MAX_SERIALIZED_REQUEST_CHARS) return compact
+
+  compact.requirement.acceptanceCriteria = []
+  compact.id = truncate(compact.id, 200)
+  compact.requirement.title = truncate(compact.requirement.title, 500)
+  compact.artifactLabel = truncate(compact.artifactLabel, 500)
+  const matchedLineId = context.association.matchedLine?.id
+  const prioritizedLines = compact.lines.slice(0, 32)
+  const matchedLine = matchedLineId && !prioritizedLines.some(({ id }) => id === matchedLineId)
+    ? compact.lines.find(({ id }) => id === matchedLineId)
+    : undefined
+  if (matchedLine) prioritizedLines[prioritizedLines.length - 1] = matchedLine
+  let remainingContent = 6_500
+  compact.lines = prioritizedLines.flatMap((line) => {
+    if (remainingContent <= 0) return []
+    const content = truncate(line.content, Math.min(remainingContent, 1_000))
+    remainingContent -= content.length
+    return [{ ...line, id: truncate(line.id, 120), content }]
+  })
+  return compact
+}
+
 /** Calls Proofline's server-side, throttled skeptic endpoint without exposing provider credentials. */
 export class ProoflineSkeptic implements SkepticProvider {
   private readonly fetcher: typeof fetch
@@ -42,21 +91,7 @@ export class ProoflineSkeptic implements SkepticProvider {
       response = await this.fetcher('/api/skeptic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          context: {
-            schemaVersion: context.schemaVersion,
-            id: context.id,
-            requirement: {
-              id: context.requirement.id,
-              title: context.requirement.title,
-              acceptanceCriteria: context.requirement.acceptanceCriteria,
-            },
-            artifactLabel: context.artifactLabel,
-            artifactRole: context.artifactRole,
-            status: context.status,
-            lines: context.lines,
-          },
-        }),
+        body: JSON.stringify({ context: hostedContext(context) }),
         ...(signal ? { signal } : {}),
       })
     } catch (error) {
