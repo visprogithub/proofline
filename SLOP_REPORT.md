@@ -34,7 +34,7 @@ Hosted request and estimated-token counters remain process-local to each warm fu
 
 ## Verification
 
-- `npm test -- --run`: 28 files, 89 tests passed.
+- `npm test -- --run`: 28 files, 91 tests passed.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed.
 - `npm run build`: passed.
