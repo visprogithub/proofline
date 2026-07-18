@@ -12,7 +12,7 @@ def inspect_page(page, screenshot_name: str) -> None:
     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
     page.goto("http://127.0.0.1:5173", wait_until="networkidle")
 
-    assert page.title() == "Proofline — Evidence before approval"
+    assert page.title() == "Proofline - Evidence before approval"
     assert page.get_by_role("heading", name="The diff says done. Show the proof.").is_visible()
     assert page.get_by_label("Public GitHub change").is_visible()
     assert page.get_by_role("button", name="Analyze evidence").is_visible()
