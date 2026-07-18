@@ -26,6 +26,8 @@ describe('review workspace advisory and export controls', () => {
     expect(screen.getByText(/No API key is requested/i)).toBeInTheDocument()
     expect(screen.queryByLabelText(/API key/i)).not.toBeInTheDocument()
     expect(screen.getByText(/Choose from 1 assessable payload excerpt/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Minimize/i })).toBeInTheDocument()
+    expect(screen.getByText(/Preview excerpt/i)).toBeInTheDocument()
     const runButton = screen.getByRole('button', { name: /Run selected excerpts/i })
     expect(runButton).toBeDisabled()
 

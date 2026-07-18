@@ -265,7 +265,7 @@ h1 em {
 .payload-preview summary { cursor: pointer; font-weight: 700; }
 .payload-preview article { margin-top: 12px; }
 .payload-preview pre { max-height: 170px; overflow: auto; padding: 10px; background: var(--ink); color: var(--acid); font: .65rem/1.5 'DM Mono',monospace; white-space: pre-wrap; }
-.payload-queue { margin-top: 12px; }
+.payload-queue { max-height: min(68vh, 720px); margin-top: 12px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border-bottom: 1px solid var(--ink); }
 .payload-queue-toolbar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 10px 12px; border: 1px solid var(--ink); background: var(--paper); box-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 18%, transparent); }
 .payload-queue-toolbar > span { font-family: 'DM Mono', monospace; font-size: .65rem; text-transform: uppercase; letter-spacing: .04em; }
 .payload-queue-toolbar > div { display: flex; gap: 8px; }
@@ -279,6 +279,10 @@ h1 em {
 .payload-claim article:first-of-type { border-top: 0; }
 .payload-claim article.payload-selected { background: color-mix(in srgb, var(--acid) 10%, var(--paper)); box-shadow: inset 4px 0 0 var(--signal); }
 .payload-item-heading strong { overflow-wrap: anywhere; }
+.payload-code { margin: 8px 0 0 26px; }
+.payload-code > summary { width: max-content; color: var(--muted); font: .6rem/1.4 'DM Mono', monospace; text-transform: uppercase; }
+.payload-code[open] > summary { margin-bottom: 8px; color: var(--signal); }
+.payload-code pre { margin-bottom: 0; }
 .payload-status { padding: 3px 6px; border: 1px solid var(--line); font: .58rem/1.2 'DM Mono', monospace; text-transform: uppercase; white-space: nowrap; }
 .payload-status-assessed { background: var(--ink); color: var(--paper); }
 .payload-status-not-assessed { border-color: var(--signal); color: var(--signal); }

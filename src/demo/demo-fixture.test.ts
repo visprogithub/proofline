@@ -12,7 +12,7 @@ describe('synthetic demo case', () => {
       'ambiguous-evidence',
     ])
     expect(demo.integrity.findings).toHaveLength(2)
-    expect(demo.assessmentContexts.filter(({ status }) => status === 'partial')).toHaveLength(3)
+    expect(demo.assessmentContexts.filter(({ status }) => status === 'partial')).toHaveLength(4)
     expect(demo.mode).toBe('demo')
   })
 })

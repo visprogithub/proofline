@@ -237,6 +237,7 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
                     <div>
                       <button type="button" disabled={assessing} onClick={selectNextBatch}>Select next batch</button>
                       <button type="button" disabled={assessing || !selectedContextIds.size} onClick={() => setSelectedContextIds(new Set())}>Clear</button>
+                      <button type="button" disabled={assessing} onClick={() => setShowSkeptic(false)}>Minimize</button>
                     </div>
                   </div>
                   {contextsByClaim.map(([claimId, contexts]) => {
@@ -273,7 +274,10 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
                                   {advisory?.status === 'assessed' ? 'Assessed' : advisory ? 'Retry available' : 'Not yet assessed'}
                                 </span>
                               </label>
-                              <pre>{context.lines.map(({ id, content }) => `${id}: ${content}`).join('\n')}</pre>
+                              <details className="payload-code">
+                                <summary>Preview excerpt</summary>
+                                <pre>{context.lines.map(({ id, content }) => `${id}: ${content}`).join('\n')}</pre>
+                              </details>
                             </article>
                           )
                         })}
