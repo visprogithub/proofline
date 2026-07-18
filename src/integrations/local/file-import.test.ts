@@ -17,6 +17,16 @@ describe('local file import', () => {
     })
   })
 
+  it('assembles requirements and diff files selected in separate controls', async () => {
+    await expect(readLocalBundle([
+      new File(['## REQ-101: Export'], 'requirements.md'),
+      new File(['diff --git a/a.ts b/a.ts'], 'change.patch'),
+    ])).resolves.toEqual({
+      requirements: { name: 'requirements.md', text: '## REQ-101: Export' },
+      diff: { name: 'change.patch', text: 'diff --git a/a.ts b/a.ts' },
+    })
+  })
+
   it('rejects oversized and duplicate-role inputs', async () => {
     const large = new File(['oversized'], 'requirements.md')
     await expect(readLocalTextFile(large, createOperationalLimits({

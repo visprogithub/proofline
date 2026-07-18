@@ -6,6 +6,7 @@ import type { AnalysisCase } from './analysis/types'
 import { createDemoCase } from '../demo/demo-fixture'
 import { stateLabel, stateStamp } from './evidence-labels'
 import { readLocalBundle } from '../integrations/local/file-import'
+import type { LocalFileKind } from '../integrations/local/file-import'
 import { analyzeLocalBundle } from './analysis/analyze-local'
 import { useGitHubAuth } from './use-github-auth'
 import { GitHubClient } from '../integrations/github/client'
@@ -28,11 +29,12 @@ export function App() {
   )
   const githubAnalysisCache = useRef(new WeakMap<GitHubClient, Map<string, AnalysisCase>>())
   const abortController = useRef<AbortController | null>(null)
-  const fileInput = useRef<HTMLInputElement | null>(null)
   const [url, setUrl] = useState('')
   const [status, setStatus] = useState<AnalysisStatus>('idle')
   const [analysis, setAnalysis] = useState<AnalysisCase | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showLocalImport, setShowLocalImport] = useState(false)
+  const [localFiles, setLocalFiles] = useState<Partial<Record<LocalFileKind, File>>>({})
 
   async function handleAnalyze(): Promise<void> {
     abortController.current?.abort()
@@ -80,19 +82,33 @@ export function App() {
     setStatus('idle')
   }
 
-  async function handleLocalFiles(files: FileList | null): Promise<void> {
-    if (!files?.length) return
+  function selectLocalFile(kind: LocalFileKind, files: FileList | null): void {
+    const file = files?.[0]
+    setLocalFiles((current) => {
+      const next = { ...current }
+      if (file) next[kind] = file
+      else delete next[kind]
+      return next
+    })
+  }
+
+  async function handleLocalFiles(): Promise<void> {
+    if (!localFiles.requirements || !localFiles.diff) {
+      setError('Choose one requirements document and one unified diff before analyzing.')
+      setStatus('error')
+      return
+    }
+    const files = [localFiles.requirements, localFiles.diff, localFiles.junit]
+      .filter((file): file is File => Boolean(file))
     setStatus('loading')
     setError(null)
     try {
-      const bundle = await readLocalBundle(Array.from(files))
+      const bundle = await readLocalBundle(files)
       setAnalysis(analyzeLocalBundle(bundle))
       setStatus('ready')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The local evidence could not be analyzed.')
       setStatus('error')
-    } finally {
-      if (fileInput.current) fileInput.current.value = ''
     }
   }
 
@@ -193,19 +209,36 @@ export function App() {
             <button className="text-action" type="button" onClick={handleDemo}>
               <FileSearch aria-hidden="true" size={18} /> Try the evidence dossier
             </button>
-            <button className="text-action muted-action" type="button" onClick={() => fileInput.current?.click()}>
+            <button className="text-action muted-action" type="button" aria-expanded={showLocalImport} onClick={() => setShowLocalImport((shown) => !shown)}>
               Import local evidence
             </button>
-            <input
-              ref={fileInput}
-              className="visually-hidden"
-              type="file"
-              multiple
-              accept=".md,.mdx,.txt,.rst,.adoc,.diff,.patch,.xml"
-              aria-label="Choose local requirements, diff, and optional JUnit files"
-              onChange={(event) => void handleLocalFiles(event.target.files)}
-            />
           </div>
+          {showLocalImport && (
+            <section className="local-import-panel" aria-label="Local evidence import">
+              <div className="local-import-heading">
+                <strong>Build a local evidence bundle</strong>
+                <span>Files stay in this browser session.</span>
+              </div>
+              <div className="local-file-grid">
+                <label>
+                  <span>Requirements <em>required</em></span>
+                  <input type="file" accept=".md,.mdx,.txt,.rst,.adoc" aria-label="Choose requirements document" disabled={status === 'loading'} onChange={(event) => selectLocalFile('requirements', event.target.files)} />
+                </label>
+                <label>
+                  <span>Unified diff <em>required</em></span>
+                  <input type="file" accept=".diff,.patch" aria-label="Choose unified diff" disabled={status === 'loading'} onChange={(event) => selectLocalFile('diff', event.target.files)} />
+                </label>
+                <label>
+                  <span>JUnit results <em>optional</em></span>
+                  <input type="file" accept=".xml" aria-label="Choose optional JUnit results" disabled={status === 'loading'} onChange={(event) => selectLocalFile('junit', event.target.files)} />
+                </label>
+              </div>
+              <button className="local-analyze-action" type="button" disabled={status === 'loading' || !localFiles.requirements || !localFiles.diff} onClick={() => void handleLocalFiles()}>
+                {status === 'loading' ? 'Reading local evidence…' : 'Analyze local evidence'}
+                <ArrowUpRight aria-hidden="true" size={17} />
+              </button>
+            </section>
+          )}
           <div className="status-region" aria-live="polite" aria-atomic="true">
             {status === 'loading' && <p>Retrieving public change artifacts from GitHub.</p>}
             {status === 'error' && error && <p className="error-message">{error}</p>}
