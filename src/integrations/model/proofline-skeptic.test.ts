@@ -5,6 +5,22 @@ import { ProoflineSkeptic } from './proofline-skeptic'
 const context = { schemaVersion: 1, id: 'ctx' } as AssessmentContext
 
 describe('Proofline skeptic client', () => {
+  it('binds fetch to the browser global instead of the provider instance', async () => {
+    let receiver: unknown
+    const fetcher = function (this: unknown): Promise<Response> {
+      receiver = this
+      return Promise.resolve(new Response(JSON.stringify({
+        result: { verdict: 'hollow-stub', rationale: 'Only a comment is present.', citedLineIds: [] },
+        provenance: { providerId: 'huggingface', modelId: 'test/model', promptVersion: 'skeptic-v1' },
+        quota: { remainingToday: 7, resetAt: '2026-07-19T00:00:00.000Z' },
+      }), { status: 200 }))
+    } as typeof fetch
+
+    await new ProoflineSkeptic(fetcher).assess(context)
+
+    expect(receiver).toBe(globalThis)
+  })
+
   it('calls only the same-origin proxy and parses quota metadata', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
       result: { verdict: 'hollow-stub', rationale: 'Only a comment is present.', citedLineIds: ['L1'] },

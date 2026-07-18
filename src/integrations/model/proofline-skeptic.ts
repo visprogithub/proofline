@@ -28,9 +28,13 @@ const errorSchema = z.object({
   resetAt: z.string().optional(),
 })
 
-/** Calls Proofline's server-side, quota-protected skeptic endpoint without exposing provider credentials. */
+/** Calls Proofline's server-side, throttled skeptic endpoint without exposing provider credentials. */
 export class ProoflineSkeptic implements SkepticProvider {
-  constructor(private readonly fetcher: typeof fetch = globalThis.fetch) {}
+  private readonly fetcher: typeof fetch
+
+  constructor(fetcher: typeof fetch = globalThis.fetch) {
+    this.fetcher = fetcher.bind(globalThis)
+  }
 
   async assess(context: AssessmentContext, signal?: AbortSignal): Promise<SkepticProviderResponse> {
     let response: Response
