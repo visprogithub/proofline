@@ -33,17 +33,15 @@ Deployments built before an environment-variable change do not receive the new v
 
 ## 3. Configure the optional hosted skeptic
 
-First run `supabase/migrations/202607180001_proofline_ai_quota.sql` in the Supabase SQL editor. Then add these as server-only Vercel environment variables:
+Add these as server-only Vercel environment variables:
 
 ```text
 HF_TOKEN
 HF_MODEL
-SUPABASE_URL
-SUPABASE_SERVICE_ROLE_KEY
 RATE_LIMIT_SALT
 ```
 
-`RATE_LIMIT_SALT` should be a long random value. Do not use a `VITE_` prefix for any of these values; that prefix would expose them to the browser bundle. Optional budget variables are `AI_PER_CLIENT_DAILY_LIMIT`, `AI_GLOBAL_DAILY_LIMIT`, `AI_GLOBAL_DAILY_TOKEN_LIMIT`, `AI_PROVIDER_TIMEOUT_MS`, and `AI_MAX_OUTPUT_TOKENS`.
+`RATE_LIMIT_SALT` should be a long random value. Do not use a `VITE_` prefix for any of these values; that prefix would expose them to the browser bundle. Optional budget variables are `AI_PER_CLIENT_DAILY_LIMIT`, `AI_GLOBAL_DAILY_LIMIT`, `AI_GLOBAL_DAILY_TOKEN_LIMIT`, `AI_PROVIDER_TIMEOUT_MS`, and `AI_MAX_OUTPUT_TOKENS`. Limits are held only in the warm function instance and reset when Vercel recycles or redeploys it.
 
 For local end-to-end testing, use `npx vercel dev`; `npm run dev` starts only Vite and cannot execute `api/skeptic.ts`.
 
@@ -73,4 +71,4 @@ Preview deployments use different hostnames. Leave GitHub sign-in disabled on pr
 5. Open a non-root path directly and confirm the SPA loads rather than returning a Vercel 404.
 6. With hosted skeptic variables configured, rerun an analysis with assessable hunks, preview the payload, consent, and verify the UI shows assessed/not-assessed counts plus remaining daily allowance or a clear limit message.
 
-The deterministic demo and local import work without the optional function. Hosted skeptic assessments require the function, quota migration, and server-only secrets above.
+The deterministic demo and local import work without the optional function. Hosted skeptic assessments require the function and server-only secrets above.

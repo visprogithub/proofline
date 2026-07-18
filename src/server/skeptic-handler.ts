@@ -29,20 +29,10 @@ const completionSchema = z.object({
 const resultSchema = z.object({
   verdict: z.string(), rationale: z.string().trim().min(1).max(300), citedLineIds: z.array(z.string()).max(12),
 }).strict()
-const quotaSchema = z.object({
-  allowed: z.boolean(),
-  reason: z.string(),
-  client_remaining: z.number().int().nonnegative(),
-  reset_at: z.string(),
-})
-const quotaEnvelopeSchema = z.union([quotaSchema, z.array(quotaSchema).min(1)])
-
 export interface SkepticServerEnvironment {
   HF_TOKEN?: string
   HF_MODEL?: string
   HF_ENDPOINT?: string
-  SUPABASE_URL?: string
-  SUPABASE_SERVICE_ROLE_KEY?: string
   RATE_LIMIT_SALT?: string
   AI_PER_CLIENT_DAILY_LIMIT?: string
   AI_GLOBAL_DAILY_LIMIT?: string
@@ -54,6 +44,19 @@ export interface SkepticServerEnvironment {
 interface HandlerDependencies {
   env: SkepticServerEnvironment
   fetcher?: typeof fetch
+  quotaStore?: InMemoryQuotaStore
+  now?: () => Date
+}
+
+interface QuotaReservation {
+  allowed: boolean
+  reason: 'reserved' | 'client-daily-limit' | 'global-daily-limit' | 'global-token-limit'
+  remainingToday: number
+  resetAt: string
+}
+
+export interface InMemoryQuotaStore {
+  reserve(scope: string, requestLimit: number, globalRequestLimit: number, globalTokenLimit: number, reservedTokens: number, now: Date): QuotaReservation
 }
 
 function positiveInteger(value: string | undefined, fallback: number, maximum: number): number {
@@ -66,6 +69,48 @@ function json(body: unknown, status: number): Response {
     status,
     headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
   })
+}
+
+function utcDay(now: Date): string {
+  return now.toISOString().slice(0, 10)
+}
+
+function nextUtcDay(now: Date): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString()
+}
+
+/** Creates best-effort per-instance quota storage. It deliberately holds no raw addresses or repository data. */
+export function createInMemoryQuotaStore(): InMemoryQuotaStore {
+  let day = ''
+  let globalRequests = 0
+  let globalTokens = 0
+  const clientRequests = new Map<string, number>()
+  return {
+    reserve(scope, requestLimit, globalRequestLimit, globalTokenLimit, reservedTokens, now) {
+      const currentDay = utcDay(now)
+      if (day !== currentDay) {
+        day = currentDay
+        globalRequests = 0
+        globalTokens = 0
+        clientRequests.clear()
+      }
+      const currentClientRequests = clientRequests.get(scope) ?? 0
+      const resetAt = nextUtcDay(now)
+      if (currentClientRequests >= requestLimit) {
+        return { allowed: false, reason: 'client-daily-limit', remainingToday: 0, resetAt }
+      }
+      if (globalRequests >= globalRequestLimit) {
+        return { allowed: false, reason: 'global-daily-limit', remainingToday: Math.max(requestLimit - currentClientRequests, 0), resetAt }
+      }
+      if (globalTokens + reservedTokens > globalTokenLimit) {
+        return { allowed: false, reason: 'global-token-limit', remainingToday: Math.max(requestLimit - currentClientRequests, 0), resetAt }
+      }
+      globalRequests += 1
+      globalTokens += reservedTokens
+      clientRequests.set(scope, currentClientRequests + 1)
+      return { allowed: true, reason: 'reserved', remainingToday: Math.max(requestLimit - currentClientRequests - 1, 0), resetAt }
+    },
+  }
 }
 
 async function clientScope(request: Request, salt: string): Promise<string> {
@@ -101,10 +146,15 @@ function promptFor(context: z.infer<typeof requestSchema>['context']): string {
 }
 
 /** Creates the server-only skeptic handler with injected dependencies for deterministic tests. */
-export function createSkepticHandler({ env, fetcher = globalThis.fetch }: HandlerDependencies) {
+export function createSkepticHandler({
+  env,
+  fetcher = globalThis.fetch,
+  quotaStore = createInMemoryQuotaStore(),
+  now = () => new Date(),
+}: HandlerDependencies) {
   return async (request: Request): Promise<Response> => {
     if (request.method !== 'POST') return json({ code: 'method-not-allowed', message: 'Use POST for hosted assessments.' }, 405)
-    const required = [env.HF_TOKEN, env.HF_MODEL, env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, env.RATE_LIMIT_SALT]
+    const required = [env.HF_TOKEN, env.HF_MODEL, env.RATE_LIMIT_SALT]
     if (required.some((value) => !value)) {
       return json({ code: 'service-unavailable', message: 'The hosted skeptic is not configured yet.' }, 503)
     }
@@ -131,38 +181,16 @@ export function createSkepticHandler({ env, fetcher = globalThis.fetch }: Handle
     const reservedTokens = Math.ceil(prompt.length / 4) + maxOutputTokens
     const scope = await clientScope(request, env.RATE_LIMIT_SALT!)
 
-    let quotaResponse: Response
-    try {
-      quotaResponse = await fetcher(`${env.SUPABASE_URL}/rest/v1/rpc/proofline_reserve_ai_quota`, {
-        method: 'POST',
-        headers: {
-          apikey: env.SUPABASE_SERVICE_ROLE_KEY!,
-          Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          p_client_scope: scope,
-          p_request_limit: perClientLimit,
-          p_global_request_limit: globalRequestLimit,
-          p_global_token_limit: globalTokenLimit,
-          p_reserved_tokens: reservedTokens,
-        }),
-      })
-    } catch {
-      return json({ code: 'service-unavailable', message: 'Usage controls are temporarily unavailable, so no model request was sent.' }, 503)
-    }
-    if (!quotaResponse.ok) return json({ code: 'service-unavailable', message: 'Usage controls are temporarily unavailable, so no model request was sent.' }, 503)
-    const quotaEnvelope = quotaEnvelopeSchema.safeParse(JSON.parse(await quotaResponse.text()) as unknown)
-    if (!quotaEnvelope.success) return json({ code: 'service-unavailable', message: 'Usage controls returned an invalid response, so no model request was sent.' }, 503)
-    const quota = Array.isArray(quotaEnvelope.data) ? quotaEnvelope.data[0] : quotaEnvelope.data
-    if (!quota) return json({ code: 'service-unavailable', message: 'Usage controls returned no response, so no model request was sent.' }, 503)
+    const quota = quotaStore.reserve(
+      scope, perClientLimit, globalRequestLimit, globalTokenLimit, reservedTokens, now(),
+    )
     if (!quota.allowed) {
       const code = quota.reason === 'client-daily-limit' ? 'client-daily-limit'
         : quota.reason === 'global-token-limit' ? 'global-token-limit' : 'global-daily-limit'
       const message = code === 'client-daily-limit'
         ? 'You have reached today\'s hosted skeptic limit. Try again after the UTC reset shown below.'
         : 'Proofline has reached its shared hosted skeptic budget for today. Try again after the UTC reset shown below.'
-      return json({ code, message, resetAt: quota.reset_at }, 429)
+      return json({ code, message, resetAt: quota.resetAt }, 429)
     }
 
     const controller = new AbortController()
@@ -183,7 +211,7 @@ export function createSkepticHandler({ env, fetcher = globalThis.fetch }: Handle
         }),
         signal: controller.signal,
       })
-      if (!provider.ok) return json({ code: 'provider-error', message: 'The hosted model is temporarily unavailable. Your daily reservation was conservatively retained.' }, 502)
+      if (!provider.ok) return json({ code: 'provider-error', message: 'The hosted model is temporarily unavailable. This attempt still counts against the current warm instance limit.' }, 502)
       const completion = completionSchema.parse(await provider.json())
       const content = completion.choices[0]?.message.content
       const result = resultSchema.parse(JSON.parse(content ?? '') as unknown)
@@ -195,7 +223,7 @@ export function createSkepticHandler({ env, fetcher = globalThis.fetch }: Handle
       return json({
         result,
         provenance: { providerId: 'huggingface', modelId: env.HF_MODEL, promptVersion: 'skeptic-v1' },
-        quota: { remainingToday: quota.client_remaining, resetAt: quota.reset_at },
+        quota: { remainingToday: quota.remainingToday, resetAt: quota.resetAt },
       }, 200)
     } catch (error) {
       const timedOut = error instanceof DOMException && error.name === 'AbortError'

@@ -9,3 +9,5 @@ coverage/
 artifacts/
 .vercel/
 docs/demo-script.md
+
+.vercel

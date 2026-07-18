@@ -1,9 +1,9 @@
-import { createSkepticHandler, type SkepticServerEnvironment } from '../src/server/skeptic-handler'
+import { createInMemoryQuotaStore, createSkepticHandler, type SkepticServerEnvironment } from '../src/server/skeptic-handler'
 
 const runtime = globalThis as typeof globalThis & {
   process?: { env?: SkepticServerEnvironment }
 }
 
-const handler = createSkepticHandler({ env: runtime.process?.env ?? {} })
+const handler = createSkepticHandler({ env: runtime.process?.env ?? {}, quotaStore: createInMemoryQuotaStore() })
 
 export default handler

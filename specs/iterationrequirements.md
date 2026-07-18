@@ -16,7 +16,7 @@ Extend Proofline beyond identifier and literal-text linkage so reviewers can see
 - AI never creates or upgrades a `strong`, `implementation-evidence-only`, or `test-evidence-found` state.
 - AI does not silently remove or rewrite deterministic evidence; negative assessments visibly caveat it as `needs human review`.
 - Missing context, limits, provider failures, malformed output, and cancellation produce `not-assessed` rather than an inferred verdict.
-- Imported requirements, source, patches, embeddings, assessments, and provider keys are never persisted or logged; daily usage stores only a salted one-way client hash and aggregate counters.
+- Imported requirements, source, patches, embeddings, assessments, provider keys, and quota data are never persisted or logged.
 - Immutable model and WASM assets may be browser-cached only when disclosed; repository content and derived vectors may not be cached.
 - Human review remains the decision boundary.
 
@@ -101,11 +101,11 @@ Evaluate an in-browser embedding provider for requirement-to-hunk retrieval agai
 - Scan outbound text for configured credential and secret patterns. A suspected secret blocks that context from transmission and reports the reason.
 - State that the external provider may process or retain submitted content under its own policy; Proofline itself retains no hosted payload or key after refresh or close.
 - Provider keys exist only in server-side Vercel environment variables, are sent only in the server function's `Authorization` header, and are never returned to the browser or placed in URLs, logs, exports, storage, or `VITE_` variables.
-- Before every model call, a Supabase RPC atomically reserves a per-client daily request, a global daily request, and an estimated token allowance. Quota failure fails closed without calling the model.
-- Client identity uses a server-salted one-way hash of the connection address; raw addresses, repository content, prompts, and model output are not stored in quota records.
-- Initial server defaults are 8 requests per client per UTC day, 50 shared requests per UTC day, and 250,000 estimated shared tokens per UTC day; all are adjustable through server-only configuration.
+- Before every model call, best-effort in-memory controls reserve a per-client request, a global request, and an estimated token allowance for the current warm function instance.
+- Client identity uses a server-salted one-way hash of the connection address; raw addresses, repository content, prompts, model output, and quota records are not persisted.
+- Initial server defaults are 8 requests per client per UTC day, 50 shared requests per UTC day, and 250,000 estimated shared tokens per UTC day for each warm function instance; all are adjustable through server-only configuration.
 - The provider timeout is 20 seconds within a 30-second function ceiling, and output is capped at 180 tokens by default. Reservations are conservatively retained after provider failure or timeout.
-- Daily-limit responses use HTTP 429 and display whether the client or shared budget was reached plus the UTC reset time. Missing configuration or quota-store failure uses HTTP 503 with a clear retry message.
+- Daily-limit responses use HTTP 429 and display whether the client or shared budget was reached plus the UTC reset time. In-memory controls reset when the function instance is recycled or redeployed; missing configuration uses HTTP 503 with a clear retry message.
 - Prioritize hosted calls in this order: failing-test links, passing test-source links, implementation links, then remaining eligible pairs.
 - Initial reviewed limits are 8 hosted assessments per analysis, 20,000 input characters per call, 2 concurrent calls, 30-second timeout, and 1 retry only for retryable transport or rate-limit failures.
 - Limit exhaustion, cancellation, offline state, rate limits, and provider errors leave unprocessed associations explicitly marked `not-assessed`.
@@ -193,7 +193,7 @@ Evaluate an in-browser embedding provider for requirement-to-hunk retrieval agai
 - Proofline does not target healthcare or clinical decision-making and must not solicit PHI.
 - Repository and imported content may nevertheless contain PII, proprietary code, credentials, or regulated data and must be treated as sensitive and untrusted.
 - Hosted transmission is explicit, minimal, previewable, cancellable, and blocked when configured secret patterns are detected.
-- Supabase stores only dated quota scopes, request counts, estimated reserved-token counts, and timestamps; no repository content, prompt, model response, raw address, or provider key is stored.
+- No usage, repository, prompt, model response, raw address, or provider key is persisted by the hosted skeptic.
 - Model assets are the only permitted persistent cache and contain no user data.
 
 ## Out of scope

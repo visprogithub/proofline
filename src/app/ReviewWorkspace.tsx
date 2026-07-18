@@ -132,7 +132,7 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
           <div className="skeptic-config">
             <div className="skeptic-service-note">
               <strong>Hosted by Proofline</strong>
-              <span>No API key is requested or sent by your browser. Daily per-connection and shared budgets protect the hosted model.</span>
+              <span>No API key is requested or sent by your browser. Best-effort per-connection and warm-instance budgets protect the hosted model.</span>
             </div>
             <details className="payload-preview">
               <summary>Preview the {assessableContexts.length} assessable payload excerpt{assessableContexts.length === 1 ? '' : 's'}</summary>

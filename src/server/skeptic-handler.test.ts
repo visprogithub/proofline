@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createSkepticHandler, type SkepticServerEnvironment } from './skeptic-handler'
+import { createInMemoryQuotaStore, createSkepticHandler, type SkepticServerEnvironment } from './skeptic-handler'
 
 const env: SkepticServerEnvironment = {
   HF_TOKEN: 'server-secret',
   HF_MODEL: 'test/model',
-  SUPABASE_URL: 'https://project.supabase.test',
-  SUPABASE_SERVICE_ROLE_KEY: 'service-secret',
   RATE_LIMIT_SALT: 'a-long-test-only-salt',
 }
 
@@ -25,12 +23,8 @@ function request(): Request {
 }
 
 describe('server-side skeptic handler', () => {
-  it('reserves quota before calling Hugging Face and never returns credentials', async () => {
-    const fetcher = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(JSON.stringify([{
-        allowed: true, reason: 'reserved', client_remaining: 7, reset_at: '2026-07-19T00:00:00.000Z',
-      }]), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+  it('reserves in-memory quota before calling Hugging Face and never returns credentials', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
         verdict: 'hollow-stub', rationale: 'The function body is empty.', citedLineIds: ['L1'],
       }) } }] }), { status: 200 }))
 
@@ -38,19 +32,22 @@ describe('server-side skeptic handler', () => {
     const body = await response.text()
 
     expect(response.status).toBe(200)
-    expect(fetcher.mock.calls[0]?.[0]).toContain('proofline_reserve_ai_quota')
-    expect(fetcher.mock.calls[1]?.[0]).toContain('huggingface.co')
+    expect(fetcher.mock.calls[0]?.[0]).toContain('huggingface.co')
     expect(body).not.toContain('server-secret')
-    expect(body).not.toContain('service-secret')
     expect(JSON.parse(body)).toMatchObject({ quota: { remainingToday: 7 } })
   })
 
   it('returns a clear reset message and does not call the model when quota is exhausted', async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify([{
-      allowed: false, reason: 'client-daily-limit', client_remaining: 0, reset_at: '2026-07-19T00:00:00.000Z',
-    }]), { status: 200 }))
-
-    const response = await createSkepticHandler({ env, fetcher })(request())
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+      verdict: 'hollow-stub', rationale: 'The function body is empty.', citedLineIds: ['L1'],
+    }) } }] }), { status: 200 }))
+    const quotaStore = createInMemoryQuotaStore()
+    const handler = createSkepticHandler({
+      env: { ...env, AI_PER_CLIENT_DAILY_LIMIT: '1' }, fetcher, quotaStore,
+      now: () => new Date('2026-07-18T08:00:00.000Z'),
+    })
+    await handler(request())
+    const response = await handler(request())
 
     expect(response.status).toBe(429)
     await expect(response.json()).resolves.toMatchObject({ code: 'client-daily-limit', resetAt: '2026-07-19T00:00:00.000Z' })

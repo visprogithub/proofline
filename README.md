@@ -50,7 +50,7 @@ The repository includes a production-ready [`vercel.json`](vercel.json) for GitH
 
 For optional GitHub sign-in, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in Vercel's project environment variables, then redeploy. Never add the GitHub OAuth client secret to Vercel or to a `VITE_` variable.
 
-The optional hosted AI skeptic uses a Vercel Function and a server-owned Hugging Face token. Apply `supabase/migrations/202607180001_proofline_ai_quota.sql`, then configure the server-only `HF_TOKEN`, `HF_MODEL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `RATE_LIMIT_SALT` variables described in `.env.example`. Never prefix these secrets with `VITE_`. Per-client, shared-request, estimated-token, timeout, and output ceilings are configurable server-side.
+The optional hosted AI skeptic uses a Vercel Function and a server-owned Hugging Face token. Configure the server-only `HF_TOKEN`, `HF_MODEL`, and `RATE_LIMIT_SALT` variables described in `.env.example`. Never prefix these secrets with `VITE_`. Per-client, shared-request, estimated-token, timeout, and output ceilings are configurable server-side. Limits are best-effort per warm Vercel instance and reset when that instance is recycled or redeployed.
 
 Follow the [Vercel deployment checklist](docs/vercel-deployment.md), including the final Supabase redirect configuration.
 
@@ -68,7 +68,7 @@ Proofline is a hosted browser developer tool, not an IDE or ChatGPT plugin. The 
 4. Export the Markdown or JSON report.
 5. Optionally return to the landing page and analyze a public GitHub pull request, commit, or comparison. Anonymous GitHub throttling applies; **Connect GitHub** is optional.
 
-**Local installation:** Clone the repository on Windows, macOS, or Linux with Node.js 24 and npm available, then run `npm ci` followed by `npm run dev` for deterministic features. To exercise `/api/skeptic` locally, use `npx vercel dev` after configuring the server-only variables and quota migration. Plain Vite does not execute Vercel Functions. No application server, database, paid model API, or private credential is required for the bundled demo or local-import workflow.
+**Local installation:** Clone the repository on Windows, macOS, or Linux with Node.js 24 and npm available, then run `npm ci` followed by `npm run dev` for deterministic features. To exercise `/api/skeptic` locally, use `npx vercel dev` after configuring the server-only variables. Plain Vite does not execute Vercel Functions. No application server, database, paid model API, or private credential is required for the bundled demo or local-import workflow.
 
 ## How analysis works
 
@@ -91,7 +91,7 @@ Proofline reports evidence, not semantic correctness. Human review remains the d
 - The optional GitHub provider token is kept in tab-scoped session storage, is sent only to GitHub's API, and is cleared when the tab closes or the user returns to anonymous mode.
 - Private repository authentication is a post-hackathon goal and should use a GitHub App or OAuth—not personal access tokens pasted into the app.
 - Candidate discovery is bounded by centralized configuration: 100 changed files, 6 candidate documents, 12 declared claims, 256 KB per candidate, and 5 MB per local import.
-- Hosted skeptic usage is atomically limited per salted connection and across the deployment each UTC day. Supabase stores quota counters only, not raw addresses, repository content, prompts, or model output.
+- Hosted skeptic usage is best-effort limited per salted connection and per warm Vercel instance each UTC day. No quota data, raw addresses, repository content, prompts, or model output is persisted.
 
 See [architecture](docs/architecture.md), the [formal specification](specs/2026-07-16-openai-devpost-hackathon-entry/spec.md), and the [requirements](specs/2026-07-16-openai-devpost-hackathon-entry/planning/requirements.md).
 

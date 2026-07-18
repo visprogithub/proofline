@@ -53,7 +53,6 @@ Implement the iteration in dependency order: normalize deterministic evidence an
 - `src/server/skeptic-handler.ts`
 - `src/server/skeptic-handler.test.ts`
 - `api/skeptic.ts`
-- `supabase/migrations/202607180001_proofline_ai_quota.sql`
 - `src/app/analysis/augment-analysis.ts`
 - `src/app/analysis/augment-analysis.test.ts`
 
@@ -73,8 +72,8 @@ Implement the iteration in dependency order: normalize deterministic evidence an
 - [ ] Block outbound contexts containing configured secret patterns.
 - [ ] Implement prioritized, concurrency-limited, cancellable enrichment after deterministic rendering.
 - [ ] Add a per-analysis disclosure/confirmation surface with no browser key input.
-- [ ] Atomically enforce salted per-client, global-request, and global-token daily quotas in Supabase before provider calls.
-- [ ] Return clear 429 reset guidance and fail closed when durable quota enforcement is unavailable.
+- [ ] Enforce best-effort salted per-client, global-request, and global-token daily limits in the warm function instance before provider calls.
+- [ ] Return clear 429 reset guidance and document the per-instance reset limitation.
 - [ ] Render pending, assessed, not-assessed, and needs-human-review overlays.
 - [ ] Add schema-versioned advisory sections to Markdown and JSON exports.
 - [ ] Add a Mermaid `.mmd` evidence-map serializer and download control with safe labels, edge strengths, and advisory caveats.
