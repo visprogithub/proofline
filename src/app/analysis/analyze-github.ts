@@ -17,6 +17,7 @@ import { changedLinesFromFiles } from './patch-lines'
 import { parseDiffEvidence } from '../../domain/evidence/diff-evidence'
 import { artifactClassification } from '../../domain/evidence/artifact-role'
 import { buildAssessmentContexts } from '../../domain/evidence/assessment-context'
+import { DEFAULT_LIMITS, type OperationalLimits } from '../../config/limits'
 
 function checkOutcome(check: CheckRunSummary): TestOutcome {
   if (check.conclusion === 'success') return 'passed'
@@ -66,6 +67,7 @@ export async function analyzeGitHubChange(
   url: string,
   client = new GitHubClient(),
   signal?: AbortSignal,
+  limits: OperationalLimits = DEFAULT_LIMITS,
 ): Promise<AnalysisCase> {
   const identity = parseGitHubChangeUrl(url)
   const summary = await loadChange(identity, client, signal)
@@ -125,8 +127,32 @@ export async function analyzeGitHubChange(
     outcome: checkOutcome(check),
     location: { source: requirementSource, path: `check/${check.id}` },
   }))
-  const artifacts = [...implementationArtifacts, ...testArtifacts]
-  const associations = associateEvidence(requirements, artifacts)
+  const initialArtifacts = [...implementationArtifacts, ...testArtifacts]
+  const associations = associateEvidence(requirements, initialArtifacts)
+  const sourceArtifactIds = Array.from(new Set(
+    associations
+      .filter(({ matchedLine }) => Boolean(matchedLine))
+      .map(({ artifactId }) => artifactId),
+  )).slice(0, limits.maxAssessmentSourceFiles)
+  const sourceEntries = await Promise.all(sourceArtifactIds.map(async (artifactId) => {
+    const artifact = implementationArtifacts.find(({ id }) => id === artifactId)
+    const file = artifact ? files.find(({ filename }) => filename === artifact.label) : undefined
+    if (!artifact || !file || file.status === 'removed') return null
+    try {
+      const content = await client.getTextFile(
+        identity, file.filename, summary.headSha, signal, limits.maxAssessmentSourceBytes,
+      )
+      return [artifactId, { content, revision: summary.headSha }] as const
+    } catch (error) {
+      if (signal?.aborted) throw error
+      return null
+    }
+  }))
+  const sourceByArtifact = new Map(sourceEntries.filter((entry) => entry !== null))
+  const artifacts = initialArtifacts.map((artifact) => {
+    const headSource = sourceByArtifact.get(artifact.id)
+    return headSource ? { ...artifact, headSource } : artifact
+  })
   const evidence = {
     schemaVersion: 1 as const,
     generatedAt: new Date().toISOString(),

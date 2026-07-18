@@ -66,6 +66,48 @@ function boundedLines(
   return { lines, truncated: false }
 }
 
+function enrichedLines(
+  artifact: EvidenceArtifact,
+  association: EvidenceAssociation,
+  existing: AssessmentInputLine[],
+  limit: number,
+): { lines: AssessmentInputLine[]; truncated: boolean } {
+  if (!artifact.headSource || !association.matchedLine?.newLine) {
+    return { lines: existing, truncated: false }
+  }
+  const source = artifact.headSource.content.replaceAll('\r\n', '\n').split('\n')
+  const matchedIndex = association.matchedLine.newLine - 1
+  const nearbyStart = Math.max(0, matchedIndex - 14)
+  const nearbyEnd = Math.min(source.length, matchedIndex + 15)
+  const importIndexes = source
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => /^\s*(?:import\b|using\b|(?:const|let|var)\s+.+?=\s*require\s*\()/i.test(line))
+    .slice(0, 12)
+    .map(({ index }) => index)
+  const indexes = Array.from(new Set([
+    ...importIndexes,
+    ...Array.from({ length: nearbyEnd - nearbyStart }, (_, offset) => nearbyStart + offset),
+  ])).sort((left, right) => left - right)
+  const lines = [...existing]
+  let characters = existing.reduce((total, line) => total + line.content.length, 0)
+  let truncated = false
+  for (const index of indexes) {
+    const content = source[index] ?? ''
+    if (characters + content.length > limit) {
+      truncated = true
+      break
+    }
+    lines.push({
+      id: `source-line-${index + 1}`,
+      content,
+      change: 'context',
+      sourceLine: index + 1,
+    })
+    characters += content.length
+  }
+  return { lines, truncated }
+}
+
 /** Builds bounded, inspectable model-input contexts from displayed strong associations. */
 export function buildAssessmentContexts(
   result: AnalysisResult,
@@ -88,18 +130,23 @@ export function buildAssessmentContexts(
 
       const role = artifactRole(artifact)
       const bounded = boundedLines(artifact, association, limits.maxAssessmentContextChars)
+      const enriched = enrichedLines(
+        artifact, association, bounded.lines, limits.maxAssessmentContextChars,
+      )
       const reasons: AssessmentContextReason[] = []
       if (role === 'test-execution') reasons.push('test-body-unavailable')
       if (artifact.diff?.availability === 'patch-unavailable') reasons.push('patch-unavailable')
-      if (role !== 'test-execution' && artifact.diff?.availability === 'available') {
+      if (role !== 'test-execution' && !artifact.headSource) {
         reasons.push('source-unavailable')
       }
-      if (bounded.truncated) reasons.push('context-limit-reached')
+      if (bounded.truncated || enriched.truncated) reasons.push('context-limit-reached')
       if (!artifact.diff && role !== 'test-execution') reasons.push('source-unavailable')
 
-      const status: AssessmentContextStatus = role === 'test-execution' || !bounded.lines.length
+      const status: AssessmentContextStatus = role === 'test-execution' || !enriched.lines.length
         ? 'insufficient'
-        : 'partial'
+        : artifact.headSource
+          ? 'complete'
+          : 'partial'
       contexts.push({
         schemaVersion: 1,
         id: `context:${key}`,
@@ -110,7 +157,7 @@ export function buildAssessmentContexts(
         artifactRole: role,
         status,
         reasons: Array.from(new Set(reasons)),
-        lines: bounded.lines,
+        lines: enriched.lines,
       })
     }
   }

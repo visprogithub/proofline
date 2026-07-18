@@ -192,9 +192,9 @@ export function createSkepticHandler({
       return json({ code: 'invalid-request', message: 'The assessment context is incomplete or invalid.' }, 400)
     }
 
-    const perClientLimit = positiveInteger(env.AI_PER_CLIENT_DAILY_LIMIT, 8, 1_000)
-    const globalRequestLimit = positiveInteger(env.AI_GLOBAL_DAILY_LIMIT, 50, 100_000)
-    const globalTokenLimit = positiveInteger(env.AI_GLOBAL_DAILY_TOKEN_LIMIT, 250_000, 100_000_000)
+    const perClientLimit = positiveInteger(env.AI_PER_CLIENT_DAILY_LIMIT, 50, 1_000)
+    const globalRequestLimit = positiveInteger(env.AI_GLOBAL_DAILY_LIMIT, 500, 100_000)
+    const globalTokenLimit = positiveInteger(env.AI_GLOBAL_DAILY_TOKEN_LIMIT, 2_000_000, 100_000_000)
     const maxOutputTokens = positiveInteger(env.AI_MAX_OUTPUT_TOKENS, 320, 1_000)
     const timeoutMs = positiveInteger(env.AI_PROVIDER_TIMEOUT_MS, 20_000, 25_000)
     const prompt = promptFor(parsed.data.context)
@@ -213,8 +213,9 @@ export function createSkepticHandler({
       return json({ code, message, resetAt: quota.resetAt }, 429)
     }
 
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), timeoutMs)
+    const timeoutController = new AbortController()
+    const providerSignal = AbortSignal.any([request.signal, timeoutController.signal])
+    const timeout = setTimeout(() => timeoutController.abort(), timeoutMs)
     try {
       hostedClient ??= createHuggingFaceChatClient(env.HF_TOKEN!, env.HF_ENDPOINT)
       const providerResponse = await hostedClient.complete({
@@ -222,7 +223,7 @@ export function createSkepticHandler({
         prompt,
         allowedVerdicts: allowedVerdicts(parsed.data.context.artifactRole),
         maxTokens: maxOutputTokens,
-      }, controller.signal)
+      }, providerSignal)
       const completion = completionSchema.safeParse(providerResponse)
       if (!completion.success) {
         return json({ code: 'provider-error', message: 'The hosted model provider returned an unexpected response envelope. No assessment was applied.' }, 502)
@@ -248,7 +249,7 @@ export function createSkepticHandler({
         quota: { remainingToday: quota.remainingToday, resetAt: quota.resetAt },
       }, 200)
     } catch (error) {
-      const timedOut = error instanceof DOMException && error.name === 'AbortError'
+      const timedOut = timeoutController.signal.aborted && !request.signal.aborted
       const failure = classifyHuggingFaceError(error)
       const failureMessage = failure === 'routing'
         ? 'Hugging Face could not route the configured model to a compatible inference provider.'
@@ -259,8 +260,17 @@ export function createSkepticHandler({
             : failure === 'provider'
               ? 'The selected Hugging Face provider rejected the model request.'
               : 'The hosted model request failed unexpectedly.'
+      const code = timedOut
+        ? 'provider-timeout'
+        : failure === 'configuration'
+          ? 'provider-configuration'
+          : failure === 'routing'
+            ? 'provider-routing'
+            : failure === 'provider'
+              ? 'provider-rejected'
+              : 'provider-error'
       return json({
-        code: timedOut ? 'provider-timeout' : 'provider-error',
+        code,
         message: timedOut
           ? 'The hosted model exceeded the time limit. No assessment was applied.'
           : `${failureMessage} No assessment was applied.`,

@@ -38,7 +38,7 @@ describe('server-side skeptic handler', () => {
     expect(chatRequest?.allowedVerdicts).toContain('hollow-stub')
     expect(signal).toBeInstanceOf(AbortSignal)
     expect(body).not.toContain('server-secret')
-    expect(JSON.parse(body)).toMatchObject({ quota: { remainingToday: 7 } })
+    expect(JSON.parse(body)).toMatchObject({ quota: { remainingToday: 49 } })
   })
 
   it('accepts JSON wrapped in a Markdown code fence but still validates the contract', async () => {

@@ -292,13 +292,14 @@ export class GitHubClient {
     path: string,
     sha: string,
     signal?: AbortSignal,
+    maxBytes = this.limits.maxCandidateBytes,
   ): Promise<string> {
     const value = contentSchema.parse(await this.request(
       `/repos/${encodeURIComponent(identity.owner)}/${encodeURIComponent(identity.repository)}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(sha)}`,
       signal,
     ))
-    if (value.size > this.limits.maxCandidateBytes) {
-      throw new Error(`The candidate document exceeds the configured ${this.limits.maxCandidateBytes}-byte limit.`)
+    if (value.size > maxBytes) {
+      throw new Error(`The requested text file exceeds the configured ${maxBytes}-byte limit.`)
     }
     const bytes = Uint8Array.from(atob(value.content.replaceAll('\n', '')), (character) => character.charCodeAt(0))
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes)

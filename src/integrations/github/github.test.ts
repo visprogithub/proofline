@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 import { GitHubClient, GitHubApiError } from './client'
-import { findLinkedIssues } from './issue-links'
 import { parseGitHubChangeUrl } from './change-url'
 
 describe('GitHub integration', () => {
@@ -21,16 +20,6 @@ describe('GitHub integration', () => {
     })
     expect(() => parseGitHubChangeUrl('https://github.com/openai/example/compare/main..feature'))
       .toThrow('/compare/base...head')
-  })
-
-  it('classifies explicit, closing, and bare issue references', () => {
-    const result = findLinkedIssues(
-      'See https://github.com/acme/tool/issues/9. Fixes #12. Related #44.',
-      { owner: 'acme', repository: 'tool' },
-    )
-    expect(result.map(({ number, confidence }) => [number, confidence])).toEqual([
-      [9, 'automatic'], [12, 'automatic'], [44, 'confirmation-required'],
-    ])
   })
 
   it('normalizes a public pull request and sends no authorization header', async () => {

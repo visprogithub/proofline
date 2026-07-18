@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import type { AssessmentContext } from '../../domain/evidence/assessment-context'
+import { DEFAULT_LIMITS, type OperationalLimits } from '../../config/limits'
 import {
   SkepticServiceError,
+  SKEPTIC_SERVICE_ERROR_CODES,
   type SkepticProvider,
   type SkepticProviderResponse,
   type SkepticServiceErrorCode,
@@ -23,18 +25,16 @@ const responseSchema = z.object({
 }).strict()
 
 const errorSchema = z.object({
-  code: z.string(),
+  code: z.enum(SKEPTIC_SERVICE_ERROR_CODES),
   message: z.string(),
   resetAt: z.string().optional(),
 })
-
-const MAX_SERIALIZED_REQUEST_CHARS = 18_000
 
 function truncate(value: string, limit: number): string {
   return value.length <= limit ? value : `${value.slice(0, Math.max(limit - 1, 0))}…`
 }
 
-function hostedContext(context: AssessmentContext) {
+function hostedContext(context: AssessmentContext, maxSerializedRequestChars: number) {
   const compact = {
     schemaVersion: context.schemaVersion,
     id: truncate(context.id, 500),
@@ -55,7 +55,7 @@ function hostedContext(context: AssessmentContext) {
     })),
   }
 
-  if (JSON.stringify({ context: compact }).length <= MAX_SERIALIZED_REQUEST_CHARS) return compact
+  if (JSON.stringify({ context: compact }).length <= maxSerializedRequestChars) return compact
 
   compact.requirement.acceptanceCriteria = []
   compact.id = truncate(compact.id, 200)
@@ -81,7 +81,10 @@ function hostedContext(context: AssessmentContext) {
 export class ProoflineSkeptic implements SkepticProvider {
   private readonly fetcher: typeof fetch
 
-  constructor(fetcher: typeof fetch = globalThis.fetch) {
+  constructor(
+    fetcher: typeof fetch = globalThis.fetch,
+    private readonly limits: OperationalLimits = DEFAULT_LIMITS,
+  ) {
     this.fetcher = fetcher.bind(globalThis)
   }
 
@@ -91,7 +94,9 @@ export class ProoflineSkeptic implements SkepticProvider {
       response = await this.fetcher('/api/skeptic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ context: hostedContext(context) }),
+        body: JSON.stringify({
+          context: hostedContext(context, Math.max(1_000, this.limits.maxHostedInputChars - 2_000)),
+        }),
         ...(signal ? { signal } : {}),
       })
     } catch (error) {
@@ -109,7 +114,7 @@ export class ProoflineSkeptic implements SkepticProvider {
     }
     if (!response.ok) {
       const parsed = errorSchema.safeParse(body)
-      const code = (parsed.success ? parsed.data.code : 'provider-error') as SkepticServiceErrorCode
+      const code: SkepticServiceErrorCode = parsed.success ? parsed.data.code : 'provider-error'
       const message = parsed.success ? parsed.data.message : 'The hosted skeptic is temporarily unavailable.'
       throw new SkepticServiceError(message, code, parsed.success ? parsed.data.resetAt : undefined)
     }

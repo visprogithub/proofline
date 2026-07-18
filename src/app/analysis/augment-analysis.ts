@@ -87,6 +87,10 @@ export async function augmentAnalysis(
             || error.code === 'global-daily-limit'
             || error.code === 'global-token-limit'
             || error.code === 'service-unavailable'
+            || error.code === 'provider-timeout'
+            || error.code === 'provider-configuration'
+            || error.code === 'provider-routing'
+            || error.code === 'provider-rejected'
           ) haltedError = error
         }
         const reason = signal?.aborted
