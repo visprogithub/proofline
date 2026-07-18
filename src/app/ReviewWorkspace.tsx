@@ -247,9 +247,8 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
                   <div className="payload-queue-toolbar">
                     <span><strong>{selectedContextIds.size}</strong> selected · {DEFAULT_LIMITS.maxHostedAssessments} maximum per run</span>
                     <div>
-                      <button type="button" disabled={assessing} onClick={selectNextBatch}>Select next batch</button>
-                      <button type="button" disabled={assessing || !selectedContextIds.size} onClick={() => setSelectedContextIds(new Set())}>Clear</button>
-                      <button type="button" disabled={assessing} onClick={() => setShowSkeptic(false)}>Minimize</button>
+                      <button className="payload-queue-action" type="button" disabled={assessing} onClick={selectNextBatch}>Select next batch</button>
+                      <button className="payload-queue-action payload-queue-action--secondary" type="button" disabled={assessing || !selectedContextIds.size} onClick={() => setSelectedContextIds(new Set())}>Clear</button>
                     </div>
                   </div>
                   {contextsByClaim.map(([claimId, contexts]) => {
