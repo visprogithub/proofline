@@ -2,7 +2,22 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AssessmentContext } from '../../domain/evidence/assessment-context'
 import { ProoflineSkeptic } from './proofline-skeptic'
 
-const context = { schemaVersion: 1, id: 'ctx' } as AssessmentContext
+const context: AssessmentContext = {
+  schemaVersion: 1,
+  id: 'ctx',
+  requirement: {
+    id: 'REQ-1', identifierOrigin: 'source', title: 'Export', acceptanceCriteria: [],
+    rawText: 'raw requirement text that must not be transmitted',
+    location: { source: { kind: 'demo', label: 'Test' } },
+  },
+  association: {
+    requirementId: 'REQ-1', artifactId: 'file:a', strength: 'strong',
+    rule: 'exact-requirement-id', matchedText: ['REQ-1'],
+    location: { source: { kind: 'demo', label: 'Test' } },
+  },
+  artifactId: 'file:a', artifactLabel: 'a.ts', artifactRole: 'implementation',
+  status: 'partial', reasons: ['source-unavailable'], lines: [{ id: 'L1', content: '// REQ-1' }],
+}
 
 describe('Proofline skeptic client', () => {
   it('binds fetch to the browser global instead of the provider instance', async () => {
@@ -30,6 +45,10 @@ describe('Proofline skeptic client', () => {
     })
     expect(fetcher).toHaveBeenCalledWith('/api/skeptic', expect.objectContaining({ method: 'POST' }))
     expect(JSON.stringify(fetcher.mock.calls)).not.toContain('Bearer')
+    const requestBody = fetcher.mock.calls[0]?.[1]?.body
+    if (typeof requestBody !== 'string') throw new Error('Expected a serialized request body.')
+    expect(requestBody).not.toContain('rawText')
+    expect(requestBody).not.toContain('association')
   })
 
   it('turns quota responses into a clear typed error', async () => {

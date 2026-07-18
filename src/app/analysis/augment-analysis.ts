@@ -44,6 +44,7 @@ export async function augmentAnalysis(
   const assessments = new Map<string, AdvisoryAssessment>()
   const eligible: AssessmentContext[] = []
   let serviceError: SkepticServiceError | undefined
+  let haltedError: SkepticServiceError | undefined
   let latestQuota: SkepticQuota | undefined
 
   for (const context of contexts) {
@@ -64,7 +65,7 @@ export async function augmentAnalysis(
       const context = eligible[cursor]
       cursor += 1
       if (!context) continue
-      if (serviceError) {
+      if (haltedError) {
         assessments.set(context.id, notAssessed('limit-reached', context))
         continue
       }
@@ -77,7 +78,15 @@ export async function augmentAnalysis(
         latestQuota = response.quota
         assessments.set(context.id, validatedAssessment(context, response.result, response.provenance))
       } catch (error) {
-        if (error instanceof SkepticServiceError) serviceError = error
+        if (error instanceof SkepticServiceError) {
+          serviceError ??= error
+          if (
+            error.code === 'client-daily-limit'
+            || error.code === 'global-daily-limit'
+            || error.code === 'global-token-limit'
+            || error.code === 'service-unavailable'
+          ) haltedError = error
+        }
         const reason = signal?.aborted
           ? 'cancelled'
           : error instanceof SkepticServiceError && (

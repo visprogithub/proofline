@@ -143,6 +143,9 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
                 </article>
               )) : <p>No strong association has enough source context for hosted assessment.</p>}
             </details>
+            {assessableContexts.length > 8 && (
+              <p className="skeptic-footnote">This run will assess up to 8 of the {assessableContexts.length} eligible excerpts; remaining excerpts will be marked not assessed.</p>
+            )}
             <label className="skeptic-consent">
               <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} disabled={assessing} />
               <span>I approve sending only the previewed excerpts to Proofline's server-side Hugging Face provider for this analysis. Hugging Face may process or retain them under its policy.</span>

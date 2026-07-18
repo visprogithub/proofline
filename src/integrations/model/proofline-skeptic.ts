@@ -42,7 +42,21 @@ export class ProoflineSkeptic implements SkepticProvider {
       response = await this.fetcher('/api/skeptic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ context }),
+        body: JSON.stringify({
+          context: {
+            schemaVersion: context.schemaVersion,
+            id: context.id,
+            requirement: {
+              id: context.requirement.id,
+              title: context.requirement.title,
+              acceptanceCriteria: context.requirement.acceptanceCriteria,
+            },
+            artifactLabel: context.artifactLabel,
+            artifactRole: context.artifactRole,
+            status: context.status,
+            lines: context.lines,
+          },
+        }),
         ...(signal ? { signal } : {}),
       })
     } catch (error) {
