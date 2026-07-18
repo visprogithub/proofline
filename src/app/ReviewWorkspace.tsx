@@ -344,15 +344,28 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
           <div className="requirement-list">
             {currentAnalysis.evidence.requirements.map((item, index) => {
               const caveated = item.associations.some(({ advisory }) => needsHumanReview(advisory?.verdict))
+              const assessedCount = item.associations.filter(({ advisory }) => advisory?.status === 'assessed').length
+              const notAssessedCount = item.associations.filter(({ advisory }) => advisory?.status === 'not-assessed').length
+              const hasAdvisory = assessedCount + notAssessedCount > 0
               return (
-                <article className={`requirement-card state-${item.state}${caveated ? ' needs-human-review' : ''}`} key={item.requirement.id}>
+                <article className={`requirement-card state-${item.state}${hasAdvisory ? ' advisory-reviewed' : ''}${caveated ? ' needs-human-review' : ''}`} key={item.requirement.id}>
                   <div className="requirement-index">{String(index + 1).padStart(2, '0')}</div>
                   <div className="requirement-copy">
                     <p className="requirement-id">{item.requirement.id}</p>
                     <h3>{item.requirement.title}</h3>
                     <p>{item.explanation}</p>
                     <details>
-                      <summary>{item.associations.length} evidence {item.associations.length === 1 ? 'association' : 'associations'}</summary>
+                      <summary>
+                        <span>{item.associations.length} evidence {item.associations.length === 1 ? 'association' : 'associations'}</span>
+                        {assessedCount > 0 && (
+                          <span className={`advisory-summary-chip${caveated ? ' flagged' : ''}`}>
+                            AI reviewed {assessedCount}{caveated ? ' · review flagged' : ''}
+                          </span>
+                        )}
+                        {notAssessedCount > 0 && (
+                          <span className="advisory-summary-chip skipped">{notAssessedCount} not assessed</span>
+                        )}
+                      </summary>
                       {item.associations.length ? (
                         <ul>{item.associations.map((association) => (
                           <li key={`${association.artifactId}:${association.rule}`}>

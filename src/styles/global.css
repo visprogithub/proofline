@@ -326,6 +326,13 @@ h1 em {
 .requirement-copy>p { margin: 9px 0; color: var(--muted); font-size: .79rem; line-height: 1.5; }
 .requirement-copy details { font-size: .75rem; }
 .requirement-copy summary { cursor: pointer; font-weight: 650; }
+.requirement-copy summary::marker { color: var(--signal); }
+.requirement-copy summary>span:first-child { margin-right: 8px; }
+.advisory-reviewed { box-shadow: inset 4px 0 0 #728019; }
+.needs-human-review { box-shadow: inset 5px 0 0 var(--signal); }
+.advisory-summary-chip { display: inline-block; margin: 3px 4px 3px 0; padding: 3px 6px; border: 1px solid #596415; color: #38400b; background: rgba(201,230,65,.22); font-family: 'DM Mono',monospace; font-size: .56rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; vertical-align: middle; }
+.advisory-summary-chip.flagged { border-color: #9e2f18; color: #7b2513; background: rgba(242,83,36,.12); }
+.advisory-summary-chip.skipped { border-color: #77746b; color: #55544e; background: rgba(85,84,78,.07); }
 .requirement-copy li { margin: 7px 0; line-height: 1.45; }
 .state-chip { align-self: start; justify-self: end; max-width: 170px; padding: 7px 9px; border: 1px solid currentColor; font-family: 'DM Mono',monospace; font-size: .62rem; text-align: center; text-transform: uppercase; }
 .state-test-evidence-found .state-chip { color: #496000; background: rgba(201,230,65,.2); }

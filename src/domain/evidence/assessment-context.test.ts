@@ -34,6 +34,27 @@ describe('assessment context builder', () => {
     expect(context?.lines.at(-1)).toMatchObject({ change: 'added', content: 'exportReport() // REQ-101' })
   })
 
+  it('builds complete context when bounded head-revision source is available', () => {
+    const patch = '@@ -0,0 +1,2 @@\n+import { writer } from "./writer"\n+exportReport() // REQ-101'
+    const artifacts: EvidenceArtifact[] = [{
+      id: 'file:export', kind: 'implementation', role: 'implementation', label: 'export.ts',
+      content: patch, diff: parseDiffEvidence('export.ts', patch),
+      headSource: {
+        content: 'import { writer } from "./writer"\nexportReport() // REQ-101\nwriter.flush()',
+        revision: 'abc123',
+      },
+      location: { source, path: 'export.ts' },
+    }]
+
+    const [context] = buildAssessmentContexts(resultFor(artifacts))
+
+    expect(context).toMatchObject({ status: 'complete', reasons: [] })
+    expect(context?.lines).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'source-line-1', content: 'import { writer } from "./writer"' }),
+      expect.objectContaining({ id: 'source-line-3', content: 'writer.flush()' }),
+    ]))
+  })
+
   it('marks passing execution metadata insufficient without a test body', () => {
     const artifacts: EvidenceArtifact[] = [{
       id: 'check:1', kind: 'test', role: 'test-execution', label: 'REQ-101 checks',

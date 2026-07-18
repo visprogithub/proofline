@@ -104,7 +104,7 @@ Build a greenfield static React/TypeScript application with a framework-independ
 
 - `src/integrations/github/client.ts`
 - `src/integrations/github/change-url.ts`
-- `src/integrations/github/issue-links.ts`
+- `src/integrations/github/issue-links.ts` (deferred; create only with the linked-issue retrieval flow)
 - `src/integrations/github/document-discovery.ts`
 - `src/integrations/github/types.ts`
 - `src/integrations/github/*.test.ts`
@@ -121,7 +121,7 @@ Build a greenfield static React/TypeScript application with a framework-independ
   - Fetch PR metadata, files and patches, head SHA, repository tree, and available checks anonymously or through optional GitHub OAuth.
   - Handle pagination, unavailable/truncated patches, GitHub errors, rate limits, abort signals, configured file bounds, page-session caching, in-flight deduplication, and ETag revalidation.
 - [ ] **Implement linked-issue recognition**
-  - File: `src/integrations/github/issue-links.ts`
+  - Deferred: create `src/integrations/github/issue-links.ts` only when the production linked-issue retrieval and confirmation flow is implemented; do not retain an uncalled parser.
   - Automatically recognize full GitHub issue URLs and case-insensitive `fixes`, `closes`, or `resolves` references.
   - Return bare `#123` mentions as confirmation-required candidates.
 - [ ] **Implement explainable requirement-document discovery**

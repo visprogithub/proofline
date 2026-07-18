@@ -2,12 +2,31 @@ import { describe, expect, it, vi } from 'vitest'
 import { analyzeLocalBundle } from './analyze-local'
 import { augmentAnalysis } from './augment-analysis'
 import type { SkepticProvider } from '../../domain/evidence/model-provider'
+import { SkepticServiceError } from '../../domain/evidence/model-provider'
 import type { AssessmentContext } from '../../domain/evidence/assessment-context'
+import { createOperationalLimits } from '../../config/limits'
 
 function localCase(source = '+export function run() {} // REQ-101') {
   return analyzeLocalBundle({
     requirements: { name: 'requirements.md', text: '## REQ-101: Export reports' },
     diff: { name: 'change.patch', text: `diff --git a/src/a.ts b/src/a.ts\n@@ -0,0 +1 @@\n${source}` },
+  })
+}
+
+function twoArtifactCase() {
+  return analyzeLocalBundle({
+    requirements: { name: 'requirements.md', text: '## REQ-101: Export reports' },
+    diff: {
+      name: 'change.patch',
+      text: [
+        'diff --git a/src/a.ts b/src/a.ts',
+        '@@ -0,0 +1 @@',
+        '+export function run() {} // REQ-101',
+        'diff --git a/src/b.ts b/src/b.ts',
+        '@@ -0,0 +1 @@',
+        '+export function save() {} // REQ-101',
+      ].join('\n'),
+    },
   })
 }
 
@@ -63,5 +82,24 @@ describe('advisory analysis augmentation', () => {
     const assessed = await augmentAnalysis(skipped, { assess }, undefined, new Set([contextId]))
     expect(assess).toHaveBeenCalledTimes(1)
     expect(assessed.evidence.requirements[0]?.associations[0]?.advisory?.status).toBe('assessed')
+  })
+
+  it('halts the remaining queue after a systemic provider failure', async () => {
+    const assess = vi.fn(() => Promise.reject(
+      new SkepticServiceError('The configured model cannot be routed.', 'provider-routing'),
+    ))
+
+    const after = await augmentAnalysis(
+      twoArtifactCase(),
+      { assess },
+      undefined,
+      undefined,
+      createOperationalLimits({ maxAiConcurrency: 1 }),
+    )
+
+    expect(assess).toHaveBeenCalledTimes(1)
+    expect(after.advisoryRun).toMatchObject({ code: 'provider-routing' })
+    expect(after.evidence.requirements[0]?.associations.map(({ advisory }) => advisory?.status))
+      .toEqual(['not-assessed', 'not-assessed'])
   })
 })

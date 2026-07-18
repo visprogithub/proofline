@@ -16,10 +16,11 @@ const context = {
   lines: [{ id: 'L1', content: 'export function run() {} // REQ-1', change: 'added' }],
 }
 
-function request(): Request {
+function request(signal?: AbortSignal): Request {
   return new Request('https://proofline.test/api/skeptic', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-forwarded-for': '192.0.2.5' },
     body: JSON.stringify({ context }),
+    ...(signal ? { signal } : {}),
   })
 }
 
@@ -72,5 +73,27 @@ describe('server-side skeptic handler', () => {
     const response = await createSkepticHandler({ env: {}, chatClient: { complete } })(request())
     expect(response.status).toBe(503)
     expect(complete).not.toHaveBeenCalled()
+  })
+
+  it('propagates request cancellation to the provider signal', async () => {
+    let providerSignal: AbortSignal | undefined
+    let signalObserved: (() => void) | undefined
+    const observed = new Promise<void>((resolve) => { signalObserved = resolve })
+    const complete = vi.fn<HostedChatClient['complete']>().mockImplementation((_chatRequest, signal) => {
+      providerSignal = signal
+      signalObserved?.()
+      return new Promise((_, reject) => {
+        signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+      })
+    })
+    const controller = new AbortController()
+    const responsePromise = createSkepticHandler({ env, chatClient: { complete } })(request(controller.signal))
+
+    await observed
+    controller.abort()
+    const response = await responsePromise
+
+    expect(providerSignal?.aborted).toBe(true)
+    expect(response.status).toBe(502)
   })
 })

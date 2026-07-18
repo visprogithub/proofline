@@ -103,11 +103,11 @@ Evaluate an in-browser embedding provider for requirement-to-hunk retrieval agai
 - Provider keys exist only in server-side Vercel environment variables, are sent only in the server function's `Authorization` header, and are never returned to the browser or placed in URLs, logs, exports, storage, or `VITE_` variables.
 - Before every model call, best-effort in-memory controls reserve a per-client request, a global request, and an estimated token allowance for the current warm function instance.
 - Client identity uses a server-salted one-way hash of the connection address; raw addresses, repository content, prompts, model output, and quota records are not persisted.
-- Initial server defaults are 8 requests per client per UTC day, 50 shared requests per UTC day, and 250,000 estimated shared tokens per UTC day for each warm function instance; all are adjustable through server-only configuration.
+- Initial server defaults are 50 requests per client per UTC day, 500 shared requests per UTC day, and 2,000,000 estimated shared tokens per UTC day for each warm function instance; all are adjustable through server-only configuration.
 - The provider timeout is 20 seconds within a 30-second function ceiling, and output is capped at 320 tokens by default. Reservations are conservatively retained after provider failure or timeout.
 - Daily-limit responses use HTTP 429 and display whether the client or shared budget was reached plus the UTC reset time. In-memory controls reset when the function instance is recycled or redeployed; missing configuration uses HTTP 503 with a clear retry message.
 - Prioritize hosted calls in this order: failing-test links, passing test-source links, implementation links, then remaining eligible pairs.
-- Initial reviewed limits are 8 hosted assessments per analysis, 20,000 input characters per call, 2 concurrent calls, 30-second timeout, and 1 retry only for retryable transport or rate-limit failures.
+- Initial reviewed limits are 20 hosted assessments per analysis, 20,000 input characters per call, 2 concurrent calls, and a 20-second provider timeout. The application does not automatically retry failed model calls; users may explicitly retry an excerpt after reviewing the failure.
 - Limit exhaustion, cancellation, offline state, rate limits, and provider errors leave unprocessed associations explicitly marked `not-assessed`.
 
 ## PL-714: Present and export advisory results without confidence theater

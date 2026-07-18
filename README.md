@@ -110,8 +110,10 @@ Proofline is a hosted browser developer tool, not an IDE or ChatGPT plugin. The 
 4. Exact source-authored IDs such as `REQ-101` create strong associations to changed code and test names. Phrase similarity is displayed only as a suggestion.
 5. JUnit results and changed-line implementation evidence produce one of six explicit evidence states.
 6. A separate deterministic scanner reports suspicious placeholders, unimplemented branches, empty handlers, fixture imports, and mock responses.
-7. In the optional hosted skeptic, the user selects a whole claim or individual artifact excerpts, up to eight per run. Already-assessed excerpts remain marked so **Select next batch** can cycle through the rest. Excerpt code is collapsed by default inside a scroll-bounded inspector with an always-available minimize action.
-8. After explicit approval, Proofline sends only the selected, size-bounded excerpts through its quota-protected Vercel Function. The approval checkbox is remembered in local browser storage until the user clears it; only that boolean preference is persisted. Advisory results never upgrade deterministic evidence.
+7. For GitHub changes, Proofline also fetches bounded head-revision source around associated changed lines so the optional skeptic can see nearby implementation and imports instead of only an isolated diff hunk.
+8. In the optional hosted skeptic, the user selects a whole claim or individual artifact excerpts, up to twenty per run. Already-assessed excerpts remain marked, permanently blocked excerpts are skipped, and **Select next batch** prioritizes work that has not been attempted. Excerpt code is collapsed by default inside a scroll-bounded inspector with an always-available minimize action.
+9. Collapsed requirement rows show how many associations the AI reviewed, how many were not assessed, and whether an advisory result flagged human review, so users do not need to reopen the skeptic panel to find results.
+10. After explicit approval, Proofline sends only the selected, size-bounded excerpts through its quota-protected Vercel Function. The approval checkbox is remembered in local browser storage until the user clears it; only that boolean preference is persisted. Advisory results never upgrade deterministic evidence.
 
 Proofline reports evidence, not semantic correctness. Human review remains the decision boundary.
 
@@ -125,7 +127,7 @@ Proofline reports evidence, not semantic correctness. Human review remains the d
 - The optional GitHub provider token is kept in tab-scoped session storage, is sent only to GitHub's API, and is cleared when the tab closes or the user returns to anonymous mode.
 - Private repository authentication is a post-hackathon goal and should use a GitHub App or OAuth—not personal access tokens pasted into the app.
 - Candidate discovery is bounded by centralized configuration: 100 changed files, 6 candidate documents, 12 declared claims, 256 KB per candidate, and 5 MB per local import.
-- Hosted skeptic usage is best-effort limited per salted connection and per warm Vercel instance each UTC day. Each run is capped at eight selected excerpts, and unusually large excerpts are reduced before crossing the server's 20,000-character request ceiling. No quota data, raw addresses, repository content, prompts, or model output is persisted.
+- Hosted skeptic usage is best-effort limited per salted connection and per warm Vercel instance each UTC day. Each run is capped at twenty selected excerpts, and unusually large excerpts are reduced before crossing the server's 20,000-character request ceiling. Request cancellation propagates to the provider, and systemic provider failures stop the remaining queue. No quota data, raw addresses, repository content, prompts, or model output is persisted.
 
 See [architecture](docs/architecture.md), the [formal specification](specs/2026-07-16-openai-devpost-hackathon-entry/spec.md), and the [requirements](specs/2026-07-16-openai-devpost-hackathon-entry/planning/requirements.md).
 
