@@ -49,8 +49,11 @@ function downloadText(filename: string, content: string, type: string): void {
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = filename
+  anchor.hidden = true
+  document.body.append(anchor)
   anchor.click()
-  URL.revokeObjectURL(url)
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
 }
 
 function needsHumanReview(verdict: AdvisoryVerdict | undefined): boolean {
@@ -66,6 +69,7 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
   const [attemptedContextIds, setAttemptedContextIds] = useState<Set<string>>(() => new Set())
   const [assessing, setAssessing] = useState(false)
   const [assessmentError, setAssessmentError] = useState<string | null>(null)
+  const [graphFitRequest, setGraphFitRequest] = useState(0)
   const assessmentController = useRef<AbortController | null>(null)
 
   const assessableContexts = currentAnalysis.assessmentContexts.filter(({ status }) => status !== 'insufficient')
@@ -180,6 +184,11 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
     onReset()
   }
 
+  function downloadExport(filename: string, content: string, type: string): void {
+    downloadText(filename, content, type)
+    setGraphFitRequest((request) => request + 1)
+  }
+
   return (
     <main className="review-shell">
       <header className="review-masthead">
@@ -191,13 +200,13 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
           <h1>{currentAnalysis.title}</h1>
         </div>
         <div className="export-actions">
-          <button type="button" onClick={() => downloadText(
+          <button type="button" onClick={() => downloadExport(
             `${exportBase}-evidence.md`, serializeMarkdownReport(currentAnalysis.evidence), 'text/markdown',
           )}><Download aria-hidden="true" size={16} /> Markdown</button>
-          <button type="button" onClick={() => downloadText(
+          <button type="button" onClick={() => downloadExport(
             `${exportBase}-evidence.json`, serializeJsonReport(currentAnalysis.evidence), 'application/json',
           )}><Download aria-hidden="true" size={16} /> JSON</button>
-          <button type="button" onClick={() => downloadText(
+          <button type="button" onClick={() => downloadExport(
             `${exportBase}-evidence-map.mmd`, serializeMermaidReport(currentAnalysis.evidence), 'text/plain',
           )}><Download aria-hidden="true" size={16} /> Mermaid map</button>
         </div>
@@ -334,6 +343,7 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
       <EvidenceGraph
         requirements={currentAnalysis.evidence.requirements}
         subject={usesDeclaredClaims ? 'claims' : 'requirements'}
+        fitRequest={graphFitRequest}
       />
 
       <div className="review-grid">

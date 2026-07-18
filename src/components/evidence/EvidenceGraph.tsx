@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Background, Controls, MarkerType, ReactFlow } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type { RequirementEvidence } from '../../domain/evidence/types'
@@ -7,15 +7,25 @@ import { buildEvidenceGraph } from './evidence-graph'
 interface EvidenceGraphProps {
   requirements: RequirementEvidence[]
   subject?: 'requirements' | 'claims'
+  fitRequest?: number
 }
 
 /** Renders the inspectable requirement-to-artifact relationship map. */
-export function EvidenceGraph({ requirements, subject = 'requirements' }: EvidenceGraphProps) {
+export function EvidenceGraph({ requirements, subject = 'requirements', fitRequest = 0 }: EvidenceGraphProps) {
+  const refit = useRef<(() => void) | null>(null)
   const model = useMemo(() => buildEvidenceGraph(requirements), [requirements])
   const edges = useMemo(() => model.edges.map((edge) => ({
     ...edge,
     markerEnd: { type: MarkerType.ArrowClosed, color: '#20201c' },
   })), [model.edges])
+
+  useEffect(() => {
+    if (!fitRequest) return
+    const frame = window.requestAnimationFrame(() => {
+      refit.current?.()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [fitRequest])
 
   return (
     <section className="graph-panel" aria-labelledby="graph-title">
@@ -27,6 +37,9 @@ export function EvidenceGraph({ requirements, subject = 'requirements' }: Eviden
         <ReactFlow
           nodes={model.nodes}
           edges={edges}
+          onInit={(instance) => {
+            refit.current = () => { void instance.fitView({ padding: 0.22 }) }
+          }}
           fitView
           fitViewOptions={{ padding: 0.22 }}
           nodesDraggable={false}
