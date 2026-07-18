@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "locked": true,
+  "cases": [
+    { "id": "holdout-download", "requirement": "A reviewer can save the analysis locally", "hunk": "URL.createObjectURL(new Blob([contents])); link.click();", "expected": true },
+    { "id": "holdout-memory", "requirement": "Closing the case removes its data", "hunk": "abortController.abort(); setCurrentCase(null);", "expected": true },
+    { "id": "holdout-status", "requirement": "Assistive technology receives progress updates", "hunk": "<div aria-live=\"polite\">{status}</div>", "expected": true },
+    { "id": "holdout-mock", "requirement": "Load production account data", "hunk": "return Promise.resolve(mockAccount);", "expected": false },
+    { "id": "holdout-comment-only", "requirement": "Delete the saved report", "hunk": "// REQ-404 delete report later", "expected": false },
+    { "id": "holdout-unrelated", "requirement": "Users can retry a failed request", "hunk": "const theme = prefersDark ? dark : light;", "expected": false },
+    { "id": "holdout-csharp-test", "requirement": "Reject missing names", "hunk": "Assert.Throws<ValidationException>(() => service.Create(name: null));", "expected": true },
+    { "id": "holdout-version", "requirement": "Upgrade the configured package", "hunk": "\"dompurify\": \"3.4.12\"", "expected": true }
+  ]
+}

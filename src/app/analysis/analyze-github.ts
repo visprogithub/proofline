@@ -14,6 +14,9 @@ import type {
 } from '../../integrations/github/types'
 import type { AnalysisCase } from './types'
 import { changedLinesFromFiles } from './patch-lines'
+import { parseDiffEvidence } from '../../domain/evidence/diff-evidence'
+import { artifactClassification } from '../../domain/evidence/artifact-role'
+import { buildAssessmentContexts } from '../../domain/evidence/assessment-context'
 
 function checkOutcome(check: CheckRunSummary): TestOutcome {
   if (check.conclusion === 'success') return 'passed'
@@ -102,16 +105,21 @@ export async function analyzeGitHubChange(
     }
   }
 
-  const implementationArtifacts: EvidenceArtifact[] = files.map((file) => ({
-    id: `file:${file.filename}`,
-    kind: 'implementation',
-    label: file.filename,
-    content: file.patch ?? '',
-    location: { source: requirementSource, path: file.filename },
-  }))
+  const implementationArtifacts: EvidenceArtifact[] = files.map((file) => {
+    const classification = artifactClassification(file.filename)
+    return {
+      id: `file:${file.filename}`,
+      ...classification,
+      label: file.filename,
+      content: file.patch ?? '',
+      diff: parseDiffEvidence(file.filename, file.patch),
+      location: { source: requirementSource, path: file.filename },
+    }
+  })
   const testArtifacts: EvidenceArtifact[] = checks.map((check) => ({
     id: `check:${check.id}`,
     kind: 'test',
+    role: 'test-execution',
     label: check.name,
     content: check.name,
     outcome: checkOutcome(check),
@@ -119,6 +127,15 @@ export async function analyzeGitHubChange(
   }))
   const artifacts = [...implementationArtifacts, ...testArtifacts]
   const associations = associateEvidence(requirements, artifacts)
+  const evidence = {
+    schemaVersion: 1 as const,
+    generatedAt: new Date().toISOString(),
+    sourceLabel: requirementSource.label,
+    requirements: deriveRequirementEvidence(requirements, artifacts, associations),
+    disclaimer: analysisBasis === 'declared-claims'
+      ? 'Generated claim labels reflect author-declared change text, not formal requirements. Associations are suggestions, not correctness, test, security, or merge proof.'
+      : 'Observed artifacts, not a correctness, security, or merge claim.',
+  }
 
   return {
     id: `github:${identity.owner}/${identity.repository}:${identity.kind}:${summary.headSha.slice(0, 12)}`,
@@ -128,15 +145,8 @@ export async function analyzeGitHubChange(
     repository: `${identity.owner}/${identity.repository}`,
     changeUrl: summary.htmlUrl,
     changeLabel: changeLabel(identity),
-    evidence: {
-      schemaVersion: 1,
-      generatedAt: new Date().toISOString(),
-      sourceLabel: requirementSource.label,
-      requirements: deriveRequirementEvidence(requirements, artifacts, associations),
-      disclaimer: analysisBasis === 'declared-claims'
-        ? 'Generated claim labels reflect author-declared change text, not formal requirements. Associations are suggestions, not correctness, test, security, or merge proof.'
-        : 'Observed artifacts, not a correctness, security, or merge claim.',
-    },
+    evidence,
     integrity: scanChangedLines(changedLinesFromFiles(files)),
+    assessmentContexts: buildAssessmentContexts(evidence),
   }
 }

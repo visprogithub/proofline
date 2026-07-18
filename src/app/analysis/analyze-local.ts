@@ -7,6 +7,9 @@ import { scanChangedLines } from '../../domain/integrity/changed-line-scanner'
 import type { ChangedLine } from '../../domain/integrity/types'
 import type { LocalFileKind } from '../../integrations/local/file-import'
 import type { AnalysisCase } from './types'
+import { parseDiffEvidence } from '../../domain/evidence/diff-evidence'
+import { artifactClassification } from '../../domain/evidence/artifact-role'
+import { buildAssessmentContexts } from '../../domain/evidence/assessment-context'
 
 type LocalBundle = Partial<Record<LocalFileKind, { name: string; text: string }>>
 
@@ -24,11 +27,13 @@ function parseUnifiedDiff(text: string, source: SourceProvenance): ParsedDiff {
 
   function flush(): void {
     if (!artifactLines.length) return
+    const content = artifactLines.join('\n')
     artifacts.push({
       id: `diff:${path}:${artifacts.length}`,
-      kind: 'implementation',
+      ...artifactClassification(path),
       label: path,
-      content: artifactLines.join('\n'),
+      content,
+      diff: parseDiffEvidence(path, content),
       location: { source, path },
     })
     artifactLines = []
@@ -77,6 +82,13 @@ export function analyzeLocalBundle(bundle: LocalBundle): AnalysisCase {
     : []
   const artifacts = [...parsedDiff.artifacts, ...testArtifacts]
   const associations = associateEvidence(requirements, artifacts)
+  const evidence = {
+    schemaVersion: 1 as const,
+    generatedAt: new Date().toISOString(),
+    sourceLabel: bundle.requirements.name,
+    requirements: deriveRequirementEvidence(requirements, artifacts, associations),
+    disclaimer: 'Locally observed artifacts, not a correctness, security, or merge claim.',
+  }
 
   return {
     id: `local:${bundle.requirements.name}`,
@@ -84,13 +96,8 @@ export function analyzeLocalBundle(bundle: LocalBundle): AnalysisCase {
     analysisBasis: 'formal-requirements',
     title: 'Local evidence analysis',
     repository: 'Files remain in this browser session',
-    evidence: {
-      schemaVersion: 1,
-      generatedAt: new Date().toISOString(),
-      sourceLabel: bundle.requirements.name,
-      requirements: deriveRequirementEvidence(requirements, artifacts, associations),
-      disclaimer: 'Locally observed artifacts, not a correctness, security, or merge claim.',
-    },
+    evidence,
     integrity: scanChangedLines(parsedDiff.changedLines),
+    assessmentContexts: buildAssessmentContexts(evidence),
   }
 }

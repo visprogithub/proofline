@@ -16,7 +16,7 @@ In one review workspace, it shows:
 - exact-ID evidence separately from weaker phrase suggestions;
 - passing, failing, implementation-only, missing, ambiguous, and suggested-evidence states;
 - changed-line implementation-integrity findings with file, line, impact, and remediation;
-- a downloadable Markdown or JSON report.
+- downloadable Markdown and JSON reports plus a Mermaid evidence-map diagram.
 
 ## Try it locally
 
@@ -50,6 +50,8 @@ The repository includes a production-ready [`vercel.json`](vercel.json) for GitH
 
 For optional GitHub sign-in, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in Vercel's project environment variables, then redeploy. Never add the GitHub OAuth client secret to Vercel or to a `VITE_` variable.
 
+The optional hosted AI skeptic uses a Vercel Function and a server-owned Hugging Face token. Apply `supabase/migrations/202607180001_proofline_ai_quota.sql`, then configure the server-only `HF_TOKEN`, `HF_MODEL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `RATE_LIMIT_SALT` variables described in `.env.example`. Never prefix these secrets with `VITE_`. Per-client, shared-request, estimated-token, timeout, and output ceilings are configurable server-side.
+
 Follow the [Vercel deployment checklist](docs/vercel-deployment.md), including the final Supabase redirect configuration.
 
 ## Installation, platforms, and judge testing
@@ -66,7 +68,7 @@ Proofline is a hosted browser developer tool, not an IDE or ChatGPT plugin. The 
 4. Export the Markdown or JSON report.
 5. Optionally return to the landing page and analyze a public GitHub pull request, commit, or comparison. Anonymous GitHub throttling applies; **Connect GitHub** is optional.
 
-**Local installation:** Clone the repository on Windows, macOS, or Linux with Node.js 24 and npm available, then run `npm ci` followed by `npm run dev`. No application server, database, paid model API, or private credential is required for the bundled demo or local-import workflow.
+**Local installation:** Clone the repository on Windows, macOS, or Linux with Node.js 24 and npm available, then run `npm ci` followed by `npm run dev` for deterministic features. To exercise `/api/skeptic` locally, use `npx vercel dev` after configuring the server-only variables and quota migration. Plain Vite does not execute Vercel Functions. No application server, database, paid model API, or private credential is required for the bundled demo or local-import workflow.
 
 ## How analysis works
 
@@ -76,6 +78,7 @@ Proofline is a hosted browser developer tool, not an IDE or ChatGPT plugin. The 
 4. Exact source-authored IDs such as `REQ-101` create strong associations to changed code and test names. Phrase similarity is displayed only as a suggestion.
 5. JUnit results and changed-line implementation evidence produce one of six explicit evidence states.
 6. A separate deterministic scanner reports suspicious placeholders, unimplemented branches, empty handlers, fixture imports, and mock responses.
+7. With per-analysis consent, the optional hosted skeptic sends only previewed bounded excerpts through Proofline's quota-protected Vercel Function; advisory results never upgrade deterministic evidence.
 
 Proofline reports evidence, not semantic correctness. Human review remains the decision boundary.
 
@@ -88,6 +91,7 @@ Proofline reports evidence, not semantic correctness. Human review remains the d
 - The optional GitHub provider token is kept in tab-scoped session storage, is sent only to GitHub's API, and is cleared when the tab closes or the user returns to anonymous mode.
 - Private repository authentication is a post-hackathon goal and should use a GitHub App or OAuth—not personal access tokens pasted into the app.
 - Candidate discovery is bounded by centralized configuration: 100 changed files, 6 candidate documents, 12 declared claims, 256 KB per candidate, and 5 MB per local import.
+- Hosted skeptic usage is atomically limited per salted connection and across the deployment each UTC day. Supabase stores quota counters only, not raw addresses, repository content, prompts, or model output.
 
 See [architecture](docs/architecture.md), the [formal specification](specs/2026-07-16-openai-devpost-hackathon-entry/spec.md), and the [requirements](specs/2026-07-16-openai-devpost-hackathon-entry/planning/requirements.md).
 

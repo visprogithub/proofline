@@ -247,6 +247,34 @@ h1 em {
 .case-meta a { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
 .basis-notice { display: grid; grid-template-columns: max-content 1fr; gap: 10px 18px; margin-top: 18px; padding: 14px 16px; border-left: 5px solid var(--signal); background: rgba(242,83,36,.1); font-size: .78rem; }
 .basis-notice strong { text-transform: uppercase; letter-spacing: .03em; }
+.skeptic-panel { margin-top: 22px; border: 1px solid var(--ink); background: rgba(240,234,220,.94); box-shadow: 6px 7px 0 rgba(32,32,28,.18); }
+.skeptic-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 22px; }
+.skeptic-heading span { color: var(--signal); font-family: 'DM Mono',monospace; font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; }
+.skeptic-heading h2 { margin: 5px 0 2px; font-size: 1.15rem; }
+.skeptic-heading p { margin: 0; color: var(--muted); font-size: .76rem; }
+.skeptic-heading button,.skeptic-actions button { min-height: 38px; padding: 0 13px; border: 1px solid var(--ink); background: var(--paper); box-shadow: 3px 3px 0 var(--ink); font-size: .72rem; font-weight: 650; }
+.skeptic-heading button:hover,.skeptic-actions button:hover:not(:disabled) { color: var(--paper); background: var(--ink); }
+.skeptic-summary { margin: 0; padding: 10px 22px; border-top: 1px solid var(--line); font-family: 'DM Mono',monospace; font-size: .64rem; }
+.skeptic-config { padding: 20px 22px 22px; border-top: 2px solid var(--ink); }
+.skeptic-fields { display: grid; grid-template-columns: max-content minmax(180px,1.25fr) max-content minmax(160px,1fr) max-content minmax(160px,1fr); gap: 9px 12px; align-items: center; }
+.skeptic-fields label { font-family: 'DM Mono',monospace; font-size: .6rem; text-transform: uppercase; }
+.skeptic-fields input { min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid var(--ink); background: var(--paper); }
+.skeptic-service-note { display: grid; gap: 6px; padding: 14px 16px; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--paper) 86%, var(--accent)); }
+.skeptic-service-note span, .skeptic-run-status { color: var(--muted); }
+.payload-preview { margin-top: 16px; padding: 12px; border: 1px solid var(--line); font-size: .72rem; }
+.payload-preview summary { cursor: pointer; font-weight: 700; }
+.payload-preview article { margin-top: 12px; }
+.payload-preview pre { max-height: 170px; overflow: auto; padding: 10px; background: var(--ink); color: var(--acid); font: .65rem/1.5 'DM Mono',monospace; white-space: pre-wrap; }
+.skeptic-consent { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; font-size: .72rem; line-height: 1.45; }
+.skeptic-consent input { margin-top: 3px; accent-color: var(--signal); }
+.skeptic-actions { display: flex; gap: 12px; margin-top: 16px; }
+.skeptic-actions button:disabled { cursor: not-allowed; opacity: .5; box-shadow: none; }
+.skeptic-error { color: #8f2412; font-weight: 700; }
+.skeptic-footnote { margin: 14px 0 0; color: var(--muted); font-size: .68rem; }
+.needs-human-review { box-shadow: inset 6px 0 0 var(--signal); }
+.advisory-note { display: grid; gap: 3px; margin-top: 8px; padding: 9px 10px; border-left: 4px solid var(--signal); background: rgba(242,83,36,.09); }
+.advisory-note strong { text-transform: uppercase; }
+.advisory-note small { color: var(--muted); font-family: 'DM Mono',monospace; font-size: .58rem; }
 .graph-panel { margin-top: 28px; border: 1px solid var(--ink); background: rgba(240,234,220,.94); box-shadow: 8px 9px 0 rgba(32,32,28,.18); }
 .graph-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding: 18px 22px; border-bottom: 1px solid var(--ink); }
 .graph-heading span { color: var(--signal); font-family: 'DM Mono',monospace; font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; }
@@ -327,6 +355,8 @@ h1 em {
   .panel-heading { padding: 20px 16px; }
   .graph-heading { align-items: flex-start; flex-direction: column; }
   .basis-notice { grid-template-columns: 1fr; }
+  .skeptic-heading { align-items: flex-start; flex-direction: column; }
+  .skeptic-fields { grid-template-columns: 1fr; }
   .graph-canvas { height: 390px; }
 }
 

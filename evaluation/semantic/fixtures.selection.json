@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "locked": false,
+  "cases": [
+    { "id": "selection-semantic-export", "requirement": "Reviewers can download an evidence report", "hunk": "const blob = new Blob([report]); anchor.click();", "expected": true },
+    { "id": "selection-semantic-reset", "requirement": "Reset clears the active analysis", "hunk": "setAnalysis(null); setError(null);", "expected": true },
+    { "id": "selection-unrelated-license", "requirement": "Users can export reports", "hunk": "Licensed under AGPL-3.0", "expected": false },
+    { "id": "selection-hollow-stub", "requirement": "Retry a failed request", "hunk": "function retryRequest() {}", "expected": false },
+    { "id": "selection-deleted", "requirement": "Announce completion", "hunk": "- announceCompletion();", "expected": false },
+    { "id": "selection-csharp", "requirement": "Reject oversized uploads", "hunk": "if (file.Length > maxBytes) throw new FileTooLargeException();", "expected": true }
+  ]
+}

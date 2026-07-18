@@ -1,0 +1,78 @@
+import { describe, expect, it } from 'vitest'
+import { createOperationalLimits } from '../../config/limits'
+import { associateEvidence } from './association-engine'
+import { buildAssessmentContexts } from './assessment-context'
+import { parseDiffEvidence } from './diff-evidence'
+import { deriveRequirementEvidence } from './state-derivation'
+import type { AnalysisResult, EvidenceArtifact, Requirement } from './types'
+
+const source = { kind: 'demo' as const, label: 'Context test' }
+const requirement: Requirement = {
+  id: 'REQ-101', identifierOrigin: 'source', title: 'Export reports',
+  acceptanceCriteria: [], rawText: 'REQ-101 Export reports', location: { source, line: 1 },
+}
+
+function resultFor(artifacts: EvidenceArtifact[]): AnalysisResult {
+  const associations = associateEvidence([requirement], artifacts)
+  return {
+    schemaVersion: 1, generatedAt: '2026-07-17T00:00:00.000Z', sourceLabel: source.label,
+    requirements: deriveRequirementEvidence([requirement], artifacts, associations), disclaimer: 'Test',
+  }
+}
+
+describe('assessment context builder', () => {
+  it('builds numbered partial context for an added exact-ID hunk', () => {
+    const patch = '@@ -1 +1,2 @@\n old\n+exportReport() // REQ-101'
+    const artifacts: EvidenceArtifact[] = [{
+      id: 'file:export', kind: 'implementation', role: 'implementation', label: 'export.ts',
+      content: patch, diff: parseDiffEvidence('export.ts', patch), location: { source, path: 'export.ts' },
+    }]
+
+    const [context] = buildAssessmentContexts(resultFor(artifacts))
+    expect(context).toMatchObject({ status: 'partial', artifactRole: 'implementation' })
+    expect(context?.reasons).toContain('source-unavailable')
+    expect(context?.lines.at(-1)).toMatchObject({ change: 'added', content: 'exportReport() // REQ-101' })
+  })
+
+  it('marks passing execution metadata insufficient without a test body', () => {
+    const artifacts: EvidenceArtifact[] = [{
+      id: 'check:1', kind: 'test', role: 'test-execution', label: 'REQ-101 checks',
+      content: 'REQ-101 checks', outcome: 'passed', location: { source },
+    }]
+    expect(buildAssessmentContexts(resultFor(artifacts))[0]).toMatchObject({
+      status: 'insufficient', reasons: ['test-body-unavailable'],
+    })
+  })
+
+  it('enforces the centralized context count limit', () => {
+    const artifacts = [1, 2].map((index): EvidenceArtifact => ({
+      id: `check:${index}`, kind: 'test', role: 'test-execution', label: `REQ-101 ${index}`,
+      content: `REQ-101 ${index}`, outcome: 'passed', location: { source },
+    }))
+    const limits = createOperationalLimits({ maxAssessmentContexts: 1 })
+    expect(buildAssessmentContexts(resultFor(artifacts), limits)).toHaveLength(1)
+  })
+
+  it('builds advisory context for a generated claim phrase match without upgrading its strength', () => {
+    const claim: Requirement = {
+      ...requirement,
+      id: 'CLAIM-001',
+      identifierOrigin: 'generated',
+      title: 'Export the report summary',
+      rawText: 'Export the report summary',
+    }
+    const patch = '@@ -0,0 +1 @@\n+exportReportSummary()'
+    const artifact: EvidenceArtifact = {
+      id: 'file:export', kind: 'implementation', role: 'implementation', label: 'export.ts',
+      content: patch, diff: parseDiffEvidence('export.ts', patch), location: { source, path: 'export.ts' },
+    }
+    const associations = associateEvidence([claim], [artifact])
+    const result: AnalysisResult = {
+      schemaVersion: 1, generatedAt: '2026-07-17T00:00:00.000Z', sourceLabel: source.label,
+      requirements: deriveRequirementEvidence([claim], [artifact], associations), disclaimer: 'Test',
+    }
+
+    expect(associations[0]).toMatchObject({ strength: 'suggested', rule: 'phrase-overlap' })
+    expect(buildAssessmentContexts(result)[0]).toMatchObject({ status: 'partial', artifactLabel: 'export.ts' })
+  })
+})

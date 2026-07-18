@@ -4,6 +4,7 @@ import { parseJunit } from './junit-parser'
 import { parseRequirements } from './requirements-parser'
 import { deriveRequirementEvidence } from './state-derivation'
 import type { EvidenceArtifact, SourceProvenance } from './types'
+import { parseDiffEvidence } from './diff-evidence'
 
 const source: SourceProvenance = { kind: 'demo', label: 'Demo specification' }
 
@@ -102,5 +103,21 @@ describe('evidence domain', () => {
       failArtifacts,
       associateEvidence(requirements, failArtifacts),
     )[0]?.state).toBe('failing-test-evidence')
+  })
+
+  it('does not count a deleted-only requirement ID as current implementation evidence', () => {
+    const requirements = parseRequirements('## REQ-101: Export reports', source)
+    const patch = '@@ -1 +1 @@\n-exportReport() // REQ-101\n+removeLegacyExport()'
+    const artifacts: EvidenceArtifact[] = [{
+      id: 'removed', kind: 'implementation', role: 'implementation', label: 'export.ts',
+      content: patch, diff: parseDiffEvidence('export.ts', patch), location: { source, path: 'export.ts' },
+    }]
+    const associations = associateEvidence(requirements, artifacts)
+
+    expect(associations[0]).toMatchObject({
+      strength: 'suggested', rule: 'removed-requirement-id', matchedLine: { change: 'deleted' },
+    })
+    expect(deriveRequirementEvidence(requirements, artifacts, associations)[0]?.state)
+      .toBe('ambiguous-evidence')
   })
 })
