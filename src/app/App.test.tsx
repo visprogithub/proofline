@@ -13,7 +13,7 @@ vi.mock('./use-github-auth', () => ({
 }))
 
 describe('Proofline application', () => {
-  it('runs the real synthetic domains from a user action and renders evidence', async () => {
+  it('PL-105 runs the real synthetic domains from one user action', async () => {
     const user = userEvent.setup()
     render(<App />)
 
@@ -26,7 +26,7 @@ describe('Proofline application', () => {
     expect(screen.getByText('Sample / synthetic case')).toBeVisible()
   })
 
-  it('accepts requirements and diff files one at a time before analysis', async () => {
+  it('PL-104 PL-604 accepts separately selected local evidence through labeled controls', async () => {
     const user = userEvent.setup()
     render(<App />)
     expect(screen.getByLabelText('Public GitHub change')).toHaveAttribute(

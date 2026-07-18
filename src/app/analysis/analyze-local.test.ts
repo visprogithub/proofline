@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { analyzeLocalBundle } from './analyze-local'
 
 describe('local evidence analysis', () => {
-  it('runs uploaded requirements, diff, and JUnit through the real domains', () => {
+  it('PL-104 analyzes uploaded requirements, diff, and JUnit through the real domains', () => {
     const result = analyzeLocalBundle({
       requirements: { name: 'requirements.md', text: '## REQ-101: Export report' },
       diff: {
@@ -19,7 +19,7 @@ describe('local evidence analysis', () => {
     expect(result.integrity.findings[0]?.rule).toBe('unfinished-marker')
   })
 
-  it('requires both requirements and diff inputs', () => {
+  it('PL-104 requires both requirements and diff inputs', () => {
     expect(() => analyzeLocalBundle({})).toThrow('requires one requirements')
     expect(() => analyzeLocalBundle({
       requirements: { name: 'requirements.md', text: '## REQ-101: Export' },

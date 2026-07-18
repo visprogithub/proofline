@@ -85,8 +85,8 @@ button { cursor: pointer; }
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(390px, 0.9fr);
   gap: clamp(42px, 7vw, 110px);
-  align-items: center;
-  padding: clamp(64px, 8vw, 118px) 7vw;
+  align-items: start;
+  padding: clamp(28px, 4vh, 44px) 7vw clamp(36px, 5vh, 64px);
   position: relative;
 }
 
