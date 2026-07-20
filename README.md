@@ -167,6 +167,7 @@ The detailed build record is in [docs/codex-build-log.md](docs/codex-build-log.m
 - opt-in saved analyses;
 - standard report adapters such as SARIF;
 - configurable integrity rule packs;
+- reusable developer-workflow integrations: extract the analysis engine into a library/package, expose it through a CLI or GitHub/IDE plugin, and offer an installable coding-agent skill so agents and reviewers can run Proofline where changes are created rather than switching to a separate website;
 - a selectable advisory model, letting reviewers choose the skeptic from a list of hosted open models.
 
 ## License
