@@ -8,8 +8,6 @@ coverage/
 *.log
 artifacts/
 .vercel/
-docs/demo-script.md
-
 .vercel
 SLOP_REPORT.md
 
@@ -17,3 +15,20 @@ demo-video/proofline-demo.webm
 docs/proofline.patch
 proofline.patch
 demo-video/proofline-demo-raw.webm
+demo-video/codex.mp4
+demo-video/proofline_2.m4a
+demo-video/proofline_3.m4a
+demo-video/proofline_4.m4a
+demo-video/proofline_5.m4a
+demo-video/proofline_6.m4a
+demo-video/proofline_7_5.m4a
+demo-video/proofline_8.m4a
+demo-video/proofline_finaledemo.mp4
+demo-video/proofline_outro.mp4
+demo-video/prooflineaudio_1.5.m4a
+demo-video/video.mp4
+docs/demo-script.md
+docs/demoscript_2.md
+demo-video/exampleofdocs.mp4
+demo-video/demotext.md
+demo-video/(Audio) proofline_finaledemo_justspoken.m4a

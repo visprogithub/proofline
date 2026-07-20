@@ -166,7 +166,8 @@ The detailed build record is in [docs/codex-build-log.md](docs/codex-build-log.m
 - private repositories through GitHub App/OAuth;
 - opt-in saved analyses;
 - standard report adapters such as SARIF;
-- configurable integrity rule packs.
+- configurable integrity rule packs;
+- a selectable advisory model, letting reviewers choose the skeptic from a list of hosted open models.
 
 ## License
 
