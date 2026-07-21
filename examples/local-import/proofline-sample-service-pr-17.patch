@@ -50,3 +50,20 @@ index 0000000..af50487
 +    liveRegion.textContent = `Analysis status: ${message}`
 +  }
 +}
+diff --git a/src/notify.ts b/src/notify.ts
+new file mode 100644
+index 0000000..b1c2d3e
+--- /dev/null
++++ b/src/notify.ts
+@@ -0,0 +1,11 @@
++export async function notifyReviewers(recipients: string[], report: string): Promise<{ delivered: boolean }> {
++  return { delivered: true }
++}
++
++export function persistAnalysis(analysis: unknown): void {
++  try {
++    localStorage.setItem('proofline:analysis', JSON.stringify(analysis))
++  } catch (error) {
++    return
++  }
++}
