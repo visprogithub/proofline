@@ -108,25 +108,27 @@ function enrichedLines(
   return { lines, truncated }
 }
 
+interface ContextCandidate {
+  item: AnalysisResult['requirements'][number]
+  association: EvidenceAssociation
+  artifact: EvidenceArtifact
+  /** Position of the owning requirement, used to restore grouped presentation order. */
+  order: number
+  /** Position within that requirement's own candidates, used for breadth-first rounds. */
+  depth: number
+}
+
 /** Builds bounded, inspectable model-input contexts from displayed strong associations. */
 export function buildAssessmentContexts(
   result: AnalysisResult,
   limits: OperationalLimits = DEFAULT_LIMITS,
 ): AssessmentContext[] {
   const seen = new Set<string>()
-  const candidatesByRequirement: Array<Array<{
-    item: AnalysisResult['requirements'][number]
-    association: EvidenceAssociation
-    artifact: EvidenceArtifact
-  }>> = []
+  const candidatesByRequirement: ContextCandidate[][] = []
 
-  for (const item of result.requirements) {
+  result.requirements.forEach((item, order) => {
     const artifactById = new Map(item.artifacts.map((artifact) => [artifact.id, artifact]))
-    const candidates: Array<{
-      item: AnalysisResult['requirements'][number]
-      association: EvidenceAssociation
-      artifact: EvidenceArtifact
-    }> = []
+    const candidates: ContextCandidate[] = []
     for (const association of item.associations) {
       const assessableSuggestion = association.rule === 'phrase-overlap' && Boolean(association.matchedLine)
       if (association.strength !== 'strong' && !assessableSuggestion) continue
@@ -135,19 +137,15 @@ export function buildAssessmentContexts(
       const key = `${item.requirement.id}:${artifact.id}:${association.hunkId ?? 'artifact'}`
       if (seen.has(key)) continue
       seen.add(key)
-      candidates.push({ item, association, artifact })
+      candidates.push({ item, association, artifact, order, depth: candidates.length })
     }
     if (candidates.length) candidatesByRequirement.push(candidates)
-  }
+  })
 
   // Allocate the context budget breadth-first: every requirement gets its first excerpt
   // before any requirement gets a second. Walking requirements in order instead would let
   // the first few consume the whole budget and leave later ones with no excerpts at all.
-  const selected: Array<{
-    item: AnalysisResult['requirements'][number]
-    association: EvidenceAssociation
-    artifact: EvidenceArtifact
-  }> = []
+  const selected: ContextCandidate[] = []
   for (let depth = 0; selected.length < limits.maxAssessmentContexts; depth += 1) {
     let addedAtThisDepth = false
     for (const candidates of candidatesByRequirement) {
@@ -159,6 +157,11 @@ export function buildAssessmentContexts(
     }
     if (!addedAtThisDepth) break
   }
+
+  // Fairness decides which excerpts make the cut, not the order they are read in. Restore
+  // requirement grouping so a reviewer works through one claim at a time instead of a
+  // batch that hops between claims.
+  selected.sort((left, right) => left.order - right.order || left.depth - right.depth)
 
   const contexts: AssessmentContext[] = []
   for (const { item, association, artifact } of selected) {

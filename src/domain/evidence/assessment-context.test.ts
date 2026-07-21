@@ -58,9 +58,36 @@ describe('assessment context builder', () => {
 
     const contexts = buildAssessmentContexts(result, createOperationalLimits({ maxAssessmentContexts: 3 }))
 
-    expect(contexts).toHaveLength(3)
-    expect(new Set(contexts.map((context) => context.requirement.id)))
-      .toEqual(new Set(['REQ-101', 'REQ-102', 'REQ-103']))
+    // Every requirement is represented, and they stay grouped in requirement order so a
+    // reviewer reads one claim at a time rather than a list that hops between claims.
+    expect(contexts.map((context) => context.requirement.id))
+      .toEqual(['REQ-101', 'REQ-102', 'REQ-103'])
+  })
+
+  it('keeps a requirement\'s excerpts together when the budget allows more than one each', () => {
+    const requirements: Requirement[] = ['REQ-101', 'REQ-102'].map((id, index) => ({
+      id, identifierOrigin: 'source', title: `Requirement ${id}`,
+      acceptanceCriteria: [], rawText: `${id} requirement`, location: { source, line: index + 1 },
+    }))
+    const artifacts: EvidenceArtifact[] = requirements.flatMap((item) => [1, 2].map((n) => {
+      const label = `${item.id}-${n}.ts`
+      const patch = `@@ -0,0 +1 @@\n+run${n}() // ${item.id}`
+      return {
+        id: `file:${label}`, kind: 'implementation' as const, role: 'implementation' as const,
+        label, content: patch, diff: parseDiffEvidence(label, patch),
+        location: { source, path: label },
+      }
+    }))
+    const associations = associateEvidence(requirements, artifacts)
+    const result: AnalysisResult = {
+      schemaVersion: 1, generatedAt: '2026-07-17T00:00:00.000Z', sourceLabel: source.label,
+      requirements: deriveRequirementEvidence(requirements, artifacts, associations), disclaimer: 'Test',
+    }
+
+    const contexts = buildAssessmentContexts(result, createOperationalLimits({ maxAssessmentContexts: 4 }))
+
+    expect(contexts.map((context) => context.requirement.id))
+      .toEqual(['REQ-101', 'REQ-101', 'REQ-102', 'REQ-102'])
   })
 
   it('builds complete context when bounded head-revision source is available', () => {
