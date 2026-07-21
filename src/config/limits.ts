@@ -32,7 +32,7 @@ export const DEFAULT_LIMITS: OperationalLimits = Object.freeze({
   maxDeclaredClaims: 12,
   maxAssessmentContextChars: 12_000,
   maxAssessmentSourceFiles: 3,
-  maxAssessmentContexts: 20,
+  maxAssessmentContexts: 60,
   maxAssessmentSourceBytes: 256 * 1024,
   maxHostedAssessments: 20,
   maxHostedInputChars: 20_000,

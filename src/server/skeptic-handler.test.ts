@@ -32,7 +32,9 @@ describe('server-side skeptic handler', () => {
 
     // Pin the per-client budget so this assertion tracks quota accounting rather than
     // whichever default the handler happens to ship with.
-    const budgeted: SkepticServerEnvironment = { ...env, AI_PER_CLIENT_DAILY_LIMIT: '10' }
+    const budgeted: SkepticServerEnvironment = {
+      ...env, AI_PER_CLIENT_DAILY_LIMIT: '10', AI_MAX_OUTPUT_TOKENS: '320',
+    }
     const response = await createSkepticHandler({ env: budgeted, chatClient: { complete } })(request())
     const body = await response.text()
 

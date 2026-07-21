@@ -113,11 +113,20 @@ export function buildAssessmentContexts(
   result: AnalysisResult,
   limits: OperationalLimits = DEFAULT_LIMITS,
 ): AssessmentContext[] {
-  const contexts: AssessmentContext[] = []
   const seen = new Set<string>()
+  const candidatesByRequirement: Array<Array<{
+    item: AnalysisResult['requirements'][number]
+    association: EvidenceAssociation
+    artifact: EvidenceArtifact
+  }>> = []
 
   for (const item of result.requirements) {
     const artifactById = new Map(item.artifacts.map((artifact) => [artifact.id, artifact]))
+    const candidates: Array<{
+      item: AnalysisResult['requirements'][number]
+      association: EvidenceAssociation
+      artifact: EvidenceArtifact
+    }> = []
     for (const association of item.associations) {
       const assessableSuggestion = association.rule === 'phrase-overlap' && Boolean(association.matchedLine)
       if (association.strength !== 'strong' && !assessableSuggestion) continue
@@ -125,41 +134,66 @@ export function buildAssessmentContexts(
       if (!artifact) continue
       const key = `${item.requirement.id}:${artifact.id}:${association.hunkId ?? 'artifact'}`
       if (seen.has(key)) continue
-      if (contexts.length >= limits.maxAssessmentContexts) return contexts
       seen.add(key)
-
-      const role = artifactRole(artifact)
-      const bounded = boundedLines(artifact, association, limits.maxAssessmentContextChars)
-      const enriched = enrichedLines(
-        artifact, association, bounded.lines, limits.maxAssessmentContextChars,
-      )
-      const reasons: AssessmentContextReason[] = []
-      if (role === 'test-execution') reasons.push('test-body-unavailable')
-      if (artifact.diff?.availability === 'patch-unavailable') reasons.push('patch-unavailable')
-      if (role !== 'test-execution' && !artifact.headSource) {
-        reasons.push('source-unavailable')
-      }
-      if (bounded.truncated || enriched.truncated) reasons.push('context-limit-reached')
-      if (!artifact.diff && role !== 'test-execution') reasons.push('source-unavailable')
-
-      const status: AssessmentContextStatus = role === 'test-execution' || !enriched.lines.length
-        ? 'insufficient'
-        : artifact.headSource
-          ? 'complete'
-          : 'partial'
-      contexts.push({
-        schemaVersion: 1,
-        id: `context:${key}`,
-        requirement: item.requirement,
-        association,
-        artifactId: artifact.id,
-        artifactLabel: artifact.label,
-        artifactRole: role,
-        status,
-        reasons: Array.from(new Set(reasons)),
-        lines: enriched.lines,
-      })
+      candidates.push({ item, association, artifact })
     }
+    if (candidates.length) candidatesByRequirement.push(candidates)
+  }
+
+  // Allocate the context budget breadth-first: every requirement gets its first excerpt
+  // before any requirement gets a second. Walking requirements in order instead would let
+  // the first few consume the whole budget and leave later ones with no excerpts at all.
+  const selected: Array<{
+    item: AnalysisResult['requirements'][number]
+    association: EvidenceAssociation
+    artifact: EvidenceArtifact
+  }> = []
+  for (let depth = 0; selected.length < limits.maxAssessmentContexts; depth += 1) {
+    let addedAtThisDepth = false
+    for (const candidates of candidatesByRequirement) {
+      if (selected.length >= limits.maxAssessmentContexts) break
+      const candidate = candidates[depth]
+      if (!candidate) continue
+      selected.push(candidate)
+      addedAtThisDepth = true
+    }
+    if (!addedAtThisDepth) break
+  }
+
+  const contexts: AssessmentContext[] = []
+  for (const { item, association, artifact } of selected) {
+    const key = `${item.requirement.id}:${artifact.id}:${association.hunkId ?? 'artifact'}`
+    const role = artifactRole(artifact)
+    const bounded = boundedLines(artifact, association, limits.maxAssessmentContextChars)
+    const enriched = enrichedLines(
+      artifact, association, bounded.lines, limits.maxAssessmentContextChars,
+    )
+    const reasons: AssessmentContextReason[] = []
+    if (role === 'test-execution') reasons.push('test-body-unavailable')
+    if (artifact.diff?.availability === 'patch-unavailable') reasons.push('patch-unavailable')
+    if (role !== 'test-execution' && !artifact.headSource) {
+      reasons.push('source-unavailable')
+    }
+    if (bounded.truncated || enriched.truncated) reasons.push('context-limit-reached')
+    if (!artifact.diff && role !== 'test-execution') reasons.push('source-unavailable')
+
+    const status: AssessmentContextStatus = role === 'test-execution' || !enriched.lines.length
+      ? 'insufficient'
+      : artifact.headSource
+        ? 'complete'
+        : 'partial'
+    contexts.push({
+      schemaVersion: 1,
+      id: `context:${key}`,
+      requirement: item.requirement,
+      association,
+      artifactId: artifact.id,
+      artifactLabel: artifact.label,
+      artifactRole: role,
+      status,
+      reasons: Array.from(new Set(reasons)),
+      lines: enriched.lines,
+    })
   }
   return contexts
 }

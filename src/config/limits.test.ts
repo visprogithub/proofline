@@ -11,7 +11,7 @@ describe('operational limits', () => {
       maxDeclaredClaims: 12,
       maxAssessmentContextChars: 12_000,
       maxAssessmentSourceFiles: 3,
-      maxAssessmentContexts: 20,
+      maxAssessmentContexts: 60,
       maxAssessmentSourceBytes: 262_144,
       maxHostedAssessments: 20,
       maxHostedInputChars: 20_000,

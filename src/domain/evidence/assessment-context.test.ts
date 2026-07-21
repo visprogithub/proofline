@@ -34,6 +34,35 @@ describe('assessment context builder', () => {
     expect(context?.lines.at(-1)).toMatchObject({ change: 'added', content: 'exportReport() // REQ-101' })
   })
 
+  it('spreads a small context budget across every requirement', () => {
+    const requirements: Requirement[] = ['REQ-101', 'REQ-102', 'REQ-103'].map((id, index) => ({
+      id, identifierOrigin: 'source', title: `Requirement ${id}`,
+      acceptanceCriteria: [], rawText: `${id} requirement`, location: { source, line: index + 1 },
+    }))
+    // Two candidates per requirement. A first-come budget of three would hand two to the
+    // first requirement and leave the last one with no excerpt at all.
+    const artifacts: EvidenceArtifact[] = requirements.flatMap((item) => [1, 2].map((n) => {
+      const label = `${item.id}-${n}.ts`
+      const patch = `@@ -0,0 +1 @@\n+run${n}() // ${item.id}`
+      return {
+        id: `file:${label}`, kind: 'implementation' as const, role: 'implementation' as const,
+        label, content: patch, diff: parseDiffEvidence(label, patch),
+        location: { source, path: label },
+      }
+    }))
+    const associations = associateEvidence(requirements, artifacts)
+    const result: AnalysisResult = {
+      schemaVersion: 1, generatedAt: '2026-07-17T00:00:00.000Z', sourceLabel: source.label,
+      requirements: deriveRequirementEvidence(requirements, artifacts, associations), disclaimer: 'Test',
+    }
+
+    const contexts = buildAssessmentContexts(result, createOperationalLimits({ maxAssessmentContexts: 3 }))
+
+    expect(contexts).toHaveLength(3)
+    expect(new Set(contexts.map((context) => context.requirement.id)))
+      .toEqual(new Set(['REQ-101', 'REQ-102', 'REQ-103']))
+  })
+
   it('builds complete context when bounded head-revision source is available', () => {
     const patch = '@@ -0,0 +1,2 @@\n+import { writer } from "./writer"\n+exportReport() // REQ-101'
     const artifacts: EvidenceArtifact[] = [{
