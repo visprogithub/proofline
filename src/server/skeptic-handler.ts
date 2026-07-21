@@ -48,9 +48,18 @@ const requestSchema = z.union([integrityRequestSchema, requirementRequestSchema]
 const completionSchema = z.object({
   choices: z.array(z.object({ message: z.object({ content: z.string() }) })).min(1),
 })
+/**
+ * Clamps rather than rejects. An over-long rationale, an extra citation, or a stray key
+ * is not a reason to discard an otherwise valid assessment — the verdict and the cited
+ * line IDs are still checked strictly below, which is where the safety actually lives.
+ */
 const resultSchema = z.object({
-  verdict: z.string(), rationale: z.string().trim().min(1).max(300), citedLineIds: z.array(z.string()).max(12),
-}).strict()
+  verdict: z.string(),
+  rationale: z.string().trim().min(1).transform((value) => (
+    value.length <= 300 ? value : `${value.slice(0, 299)}…`
+  )),
+  citedLineIds: z.array(z.string()).max(64),
+})
 export interface SkepticServerEnvironment {
   HF_TOKEN?: string
   HF_MODEL?: string
@@ -248,7 +257,9 @@ export function createSkepticHandler({
     const perClientLimit = positiveInteger(env.AI_PER_CLIENT_DAILY_LIMIT, 250, 5_000)
     const globalRequestLimit = positiveInteger(env.AI_GLOBAL_DAILY_LIMIT, 5_000, 100_000)
     const globalTokenLimit = positiveInteger(env.AI_GLOBAL_DAILY_TOKEN_LIMIT, 20_000_000, 100_000_000)
-    const maxOutputTokens = positiveInteger(env.AI_MAX_OUTPUT_TOKENS, 320, 1_000)
+    // Context-enriched batches produce longer answers; too small a ceiling truncates the
+    // JSON mid-object and the whole assessment is lost as a format failure.
+    const maxOutputTokens = positiveInteger(env.AI_MAX_OUTPUT_TOKENS, 640, 2_000)
     const timeoutMs = positiveInteger(env.AI_PROVIDER_TIMEOUT_MS, 20_000, 25_000)
     const reservedTokens = Math.ceil(prompt.length / 4) + maxOutputTokens
     const scope = await clientScope(request, env.RATE_LIMIT_SALT!)

@@ -45,6 +45,23 @@ describe('server-side skeptic handler', () => {
     expect(JSON.parse(body)).toMatchObject({ quota: { remainingToday: 9 } })
   })
 
+  it('clamps an over-long rationale and tolerates extra citations and keys', async () => {
+    const complete = vi.fn<HostedChatClient['complete']>().mockResolvedValue({ choices: [{ message: { content: JSON.stringify({
+      verdict: 'hollow-stub',
+      rationale: 'x'.repeat(420),
+      citedLineIds: Array.from({ length: 13 }, () => 'L1'),
+      confidence: 'high',
+    }) } }] })
+
+    const response = await createSkepticHandler({ env, chatClient: { complete } })(request())
+
+    // A chatty model must not cost the reviewer an otherwise valid assessment.
+    expect(response.status).toBe(200)
+    const payload = await response.json() as { result: { rationale: string; citedLineIds: string[] } }
+    expect(payload.result.rationale.length).toBeLessThanOrEqual(300)
+    expect(payload.result.citedLineIds).toHaveLength(13)
+  })
+
   it('accepts JSON wrapped in a Markdown code fence but still validates the contract', async () => {
     const complete = vi.fn<HostedChatClient['complete']>().mockResolvedValue({ choices: [{ message: { content: `\`\`\`json
 {"verdict":"hollow-stub","rationale":"The function body is empty.","citedLineIds":["L1"]}
