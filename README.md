@@ -160,7 +160,7 @@ Codex was used as the implementation collaborator for requirements shaping, arch
 - `/feedback` session ID: 019f6c49-9dc4-78b1-b3fb-c98eac8ba859
 - Public demo URL: **https://proofline-5s39-phi.vercel.app/**
 - Public repository URL: **https://github.com/visprogithub/proofline**
-- Narrated demo video: **https://youtu.be/q6hGEAK3rZA**
+- Narrated demo video: **https://youtu.be/sKZ1xEM2ERg**
 
 The detailed build record is in [docs/codex-build-log.md](docs/codex-build-log.md), and the recording outline is in [docs/demo-script.md](docs/demo-script.md).
 
