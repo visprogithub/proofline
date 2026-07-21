@@ -168,7 +168,10 @@ The detailed build record is in [docs/codex-build-log.md](docs/codex-build-log.m
 - standard report adapters such as SARIF;
 - configurable integrity rule packs;
 - reusable developer-workflow integrations: extract the analysis engine into a library/package, expose it through a CLI or GitHub/IDE plugin, and offer an installable coding-agent skill so agents and reviewers can run Proofline where changes are created rather than switching to a separate website;
-- a selectable advisory model, letting reviewers choose the skeptic from a list of hosted open models.
+- a selectable advisory model, letting reviewers choose the skeptic from a list of hosted open models;
+- model-interpreted integrity findings that augment, and never replace, the deterministic scanner.
+
+Today's integrity findings come from bounded pattern rules, so they catch literal signals such as a `TODO` marker, a `mockResponse` object, or an empty catch block. They cannot recognize code that is hollow in meaning rather than in syntax. A future opt-in pass would let the advisory model read the same changed lines and propose interpreted findings—for example, a handler that returns a fixed success payload regardless of its input, a catch block that swallows an error without surfacing it, a parameter the new logic never reads, or a test whose assertion cannot fail. Those findings would stay in their own lane: visibly labeled as model-interpreted, required to cite the exact lines they describe, kept separate from the deterministic findings list, and never able to change a requirement's evidence state.
 
 ## License
 
