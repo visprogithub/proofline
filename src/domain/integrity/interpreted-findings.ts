@@ -13,15 +13,19 @@ export const INTERPRETED_VERDICTS = [
 ] as const
 
 export type InterpretedVerdict = typeof INTERPRETED_VERDICTS[number]
-export type ReportableVerdict = Exclude<InterpretedVerdict, 'no-signal'>
 
-export type InterpretedNotAssessedReason =
-  | 'insufficient-context'
-  | 'secret-detected'
-  | 'limit-reached'
-  | 'cancelled'
-  | 'invalid-response'
-  | 'provider-error'
+/**
+ * Verdicts that produce a visible finding. `no-signal` deliberately does not. Declared
+ * explicitly so a verdict without display copy fails to compile instead of disappearing.
+ */
+export const REPORTABLE_VERDICTS = [
+  'hollow-implementation',
+  'swallowed-error',
+  'unused-input',
+  'vacuous-test',
+] as const satisfies readonly Exclude<InterpretedVerdict, 'no-signal'>[]
+
+export type ReportableVerdict = typeof REPORTABLE_VERDICTS[number]
 
 export interface InterpretedCitedLine {
   id: string
@@ -55,6 +59,13 @@ export interface InterpretedIntegrityRun {
   skipped: number
   /** Model findings discarded because the deterministic scanner already reports those lines. */
   duplicatesDropped: number
+  /** Added source lines eligible for interpretation in this change. */
+  linesEligible: number
+  /**
+   * Added source lines the model actually returned an answer for. Counts successful
+   * batches only, so a failed run cannot report coverage it never achieved.
+   */
+  linesInterpreted: number
   message?: string
   resetAt?: string
 }
@@ -84,7 +95,7 @@ const COPY: Record<ReportableVerdict, { summary: string; impact: string; remedia
 
 /** Returns true when a model verdict is reportable as an interpreted finding. */
 export function isReportableVerdict(verdict: string): verdict is ReportableVerdict {
-  return verdict in COPY
+  return (REPORTABLE_VERDICTS as readonly string[]).includes(verdict)
 }
 
 /** Builds a display-ready interpreted finding from a validated model verdict. */

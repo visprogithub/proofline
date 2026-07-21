@@ -31,6 +31,32 @@ function mixedSafetyCase() {
   })
 }
 
+function interpretableCase() {
+  return analyzeLocalBundle({
+    requirements: { name: 'requirements.md', text: '## REQ-101: Export reports' },
+    diff: {
+      name: 'change.patch',
+      text: [
+        'diff --git a/src/notify.ts b/src/notify.ts',
+        '@@ -0,0 +1,3 @@',
+        '+export function notify(recipients, report) {',
+        '+  return { delivered: true }',
+        '+}',
+      ].join('\n'),
+    },
+  })
+}
+
+function docsOnlyCase() {
+  return analyzeLocalBundle({
+    requirements: { name: 'requirements.md', text: '## REQ-101: Export reports' },
+    diff: {
+      name: 'change.patch',
+      text: 'diff --git a/docs/notes.md b/docs/notes.md\n@@ -0,0 +1 @@\n+Prose about REQ-101 with no code.',
+    },
+  })
+}
+
 describe('review workspace advisory and export controls', () => {
   beforeEach(() => window.localStorage.clear())
   afterEach(() => vi.unstubAllGlobals())
@@ -90,5 +116,51 @@ describe('review workspace advisory and export controls', () => {
     expect(screen.getByText(/1 not assessed/i, { selector: '.advisory-summary-chip' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Select next batch/i }))
     expect(screen.getByRole('button', { name: /Run selected excerpts \(0\)/i })).toBeDisabled()
+  })
+
+  it('interprets changed lines only after approval and keeps the advisory lane separate', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation((_input, init) => {
+      if (typeof init?.body !== 'string') throw new Error('Expected a serialized request body.')
+      const body = JSON.parse(init.body) as { mode?: string; lines?: Array<{ id: string }> }
+      expect(body.mode).toBe('integrity')
+      return Promise.resolve(new Response(JSON.stringify({
+        result: {
+          verdict: 'hollow-implementation',
+          rationale: 'Returns a fixed value regardless of its input.',
+          citedLineIds: [body.lines?.[1]?.id],
+        },
+        provenance: { providerId: 'huggingface', modelId: 'test/model', promptVersion: 'skeptic-v1' },
+        quota: { remainingToday: 40, resetAt: '2026-07-22T00:00:00.000Z' },
+      }), { status: 200 }))
+    })
+    vi.stubGlobal('fetch', fetcher)
+    const user = userEvent.setup()
+    render(<ReviewWorkspace analysis={interpretableCase()} onReset={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: /Interpret excerpts/i })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: /Preview skeptic/i }))
+    await user.click(screen.getByRole('checkbox', { name: /Remember my approval/i }))
+    expect(screen.getByRole('button', { name: /Interpret excerpts/i })).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: /Interpret excerpts/i }))
+
+    expect(await screen.findByText(/Implementation may not perform the described work/i)).toBeInTheDocument()
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent(/1 new finding/i)
+    expect(status).toHaveTextContent(/deterministic findings unchanged/i)
+    // The advisory verdict must not join the deterministic findings list.
+    expect(screen.getByText(/No configured integrity signals were observed/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Interpret again/i })).toBeInTheDocument()
+  })
+
+  it('disables the interpreted pass when a change has no added source lines', async () => {
+    const user = userEvent.setup()
+    render(<ReviewWorkspace analysis={docsOnlyCase()} onReset={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: /Preview skeptic/i }))
+    await user.click(screen.getByRole('checkbox', { name: /Remember my approval/i }))
+
+    expect(screen.getByRole('button', { name: /Interpret excerpts/i })).toBeDisabled()
+    expect(screen.getByText(/no added source lines to interpret/i)).toBeInTheDocument()
   })
 })

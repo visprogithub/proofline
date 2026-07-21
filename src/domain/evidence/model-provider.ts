@@ -35,6 +35,23 @@ export const SKEPTIC_SERVICE_ERROR_CODES = [
 
 export type SkepticServiceErrorCode = typeof SKEPTIC_SERVICE_ERROR_CODES[number]
 
+/**
+ * Service failures that make the rest of the queue pointless, so both advisory lanes
+ * stop early on them under one shared policy. `input-too-large` and `invalid-request`
+ * are deliberately excluded: they describe a single request, not the service, and
+ * halting on them would discard batches that would have succeeded.
+ */
+export const HALTING_SERVICE_ERROR_CODES = [
+  'client-daily-limit',
+  'global-daily-limit',
+  'global-token-limit',
+  'service-unavailable',
+  'provider-timeout',
+  'provider-configuration',
+  'provider-routing',
+  'provider-rejected',
+] as const satisfies readonly SkepticServiceErrorCode[]
+
 export class SkepticServiceError extends Error {
   constructor(
     message: string,
@@ -44,6 +61,11 @@ export class SkepticServiceError extends Error {
     super(message)
     this.name = 'SkepticServiceError'
   }
+}
+
+/** Reports whether a service failure should stop the remaining advisory queue. */
+export function haltsRemainingWork(error: SkepticServiceError): boolean {
+  return (HALTING_SERVICE_ERROR_CODES as readonly string[]).includes(error.code)
 }
 
 export interface SkepticProvider {

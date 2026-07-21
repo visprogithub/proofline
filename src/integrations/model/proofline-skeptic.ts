@@ -146,22 +146,29 @@ export class ProoflineSkeptic implements SkepticProvider, IntegrityInterpreter {
 
   /** Requests one advisory interpretation of a bounded batch of changed lines. */
   interpret(batch: IntegrityBatch, signal?: AbortSignal): Promise<SkepticProviderResponse> {
-    return this.send({
-      context: {
-        schemaVersion: 1,
-        id: truncate(batch.id, 500),
-        requirement: { id: 'CHANGED-LINES', title: truncate(batch.path, 1_000), acceptanceCriteria: [] },
-        artifactLabel: truncate(batch.path, 1_000),
-        artifactRole: 'implementation',
-        status: 'complete',
-        lines: batch.lines.map((line) => ({
-          id: truncate(line.id, 200),
-          content: truncate(line.content, 4_000),
-          change: 'added' as const,
-          ...(line.sourceLine !== undefined ? { sourceLine: line.sourceLine } : {}),
-        })),
-      },
-      mode: 'integrity',
-    }, signal)
+    const role = /\.(?:test|spec)\.[cm]?[jt]sx?$/i.test(batch.path) ? 'test-source' : 'implementation'
+    const ceiling = Math.max(1_000, this.limits.maxHostedInputChars - 2_000)
+    const build = (lines: ReturnType<typeof this.integrityLines>) => ({
+      mode: 'integrity' as const,
+      path: truncate(batch.path, 1_000),
+      artifactRole: role,
+      lines,
+    })
+    // Measure the serialized request, not just field lengths, so JSON escaping cannot
+    // push a batch past the server's request ceiling.
+    let lines = this.integrityLines(batch)
+    while (lines.length > 1 && JSON.stringify(build(lines)).length > ceiling) {
+      lines = lines.slice(0, -1)
+    }
+    return this.send(build(lines), signal)
+  }
+
+  private integrityLines(batch: IntegrityBatch) {
+    return batch.lines.map((line) => ({
+      id: truncate(line.id, 200),
+      content: truncate(line.content, 4_000),
+      change: 'added' as const,
+      ...(line.sourceLine !== undefined ? { sourceLine: line.sourceLine } : {}),
+    }))
   }
 }

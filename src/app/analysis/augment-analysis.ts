@@ -2,7 +2,13 @@ import type { OperationalLimits } from '../../config/limits'
 import { DEFAULT_LIMITS } from '../../config/limits'
 import { validatedAssessment } from '../../domain/evidence/advisory-assessment'
 import type { AssessmentContext } from '../../domain/evidence/assessment-context'
-import { SkepticServiceError, type SkepticProvider, type SkepticQuota } from '../../domain/evidence/model-provider'
+import {
+  haltsRemainingWork,
+  SkepticServiceError,
+  type SkepticProvider,
+  type SkepticQuota,
+} from '../../domain/evidence/model-provider'
+import { runBounded } from './bounded-run'
 import { scanOutboundText } from '../../domain/evidence/outbound-safety'
 import type { AdvisoryAssessment, AdvisoryNotAssessedReason } from '../../domain/evidence/types'
 import type { AnalysisCase } from './types'
@@ -61,57 +67,38 @@ export async function augmentAnalysis(
     }
   }
 
-  let cursor = 0
-  async function worker(): Promise<void> {
-    while (cursor < eligible.length) {
-      const context = eligible[cursor]
-      cursor += 1
-      if (!context) continue
-      if (haltedError) {
-        assessments.set(context.id, notAssessed('limit-reached', context))
-        continue
-      }
-      if (signal?.aborted) {
-        assessments.set(context.id, notAssessed('cancelled', context))
-        continue
-      }
-      try {
-        const response = await provider.assess(context, signal)
-        latestQuota = response.quota
-        assessments.set(context.id, validatedAssessment(context, response.result, response.provenance))
-      } catch (error) {
-        if (error instanceof SkepticServiceError) {
-          serviceError ??= error
-          if (
-            error.code === 'client-daily-limit'
-            || error.code === 'global-daily-limit'
-            || error.code === 'global-token-limit'
-            || error.code === 'service-unavailable'
-            || error.code === 'provider-timeout'
-            || error.code === 'provider-configuration'
-            || error.code === 'provider-routing'
-            || error.code === 'provider-rejected'
-          ) haltedError = error
-        }
-        const reason = signal?.aborted
-          ? 'cancelled'
-          : error instanceof SkepticServiceError && (
-            error.code === 'client-daily-limit'
-            || error.code === 'global-daily-limit'
-            || error.code === 'global-token-limit'
-          )
-            ? 'limit-reached'
-          : error instanceof Error && /parse|invalid|cited|outside|verdict/i.test(error.message)
-            ? 'invalid-response'
-            : 'provider-error'
-        assessments.set(context.id, notAssessed(reason, context))
-      }
+  await runBounded(eligible, limits.maxAiConcurrency, async (context) => {
+    if (haltedError) {
+      assessments.set(context.id, notAssessed('limit-reached', context))
+      return
     }
-  }
-  await Promise.all(Array.from(
-    { length: Math.min(limits.maxAiConcurrency, eligible.length) },
-    () => worker(),
-  ))
+    if (signal?.aborted) {
+      assessments.set(context.id, notAssessed('cancelled', context))
+      return
+    }
+    try {
+      const response = await provider.assess(context, signal)
+      latestQuota = response.quota
+      assessments.set(context.id, validatedAssessment(context, response.result, response.provenance))
+    } catch (error) {
+      if (error instanceof SkepticServiceError) {
+        serviceError ??= error
+        if (haltsRemainingWork(error)) haltedError = error
+      }
+      const reason = signal?.aborted
+        ? 'cancelled'
+        : error instanceof SkepticServiceError && (
+          error.code === 'client-daily-limit'
+          || error.code === 'global-daily-limit'
+          || error.code === 'global-token-limit'
+        )
+          ? 'limit-reached'
+        : error instanceof Error && /parse|invalid|cited|outside|verdict/i.test(error.message)
+          ? 'invalid-response'
+          : 'provider-error'
+      assessments.set(context.id, notAssessed(reason, context))
+    }
+  })
 
   const contextByAssociation = new Map(contexts.map((context) => [
     `${context.requirement.id}:${context.artifactId}:${context.association.hunkId ?? 'artifact'}`,

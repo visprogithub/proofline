@@ -9,7 +9,7 @@ import { stateLabel } from './evidence-labels'
 import { EvidenceGraph } from '../components/evidence/EvidenceGraph'
 import { ProoflineSkeptic } from '../integrations/model/proofline-skeptic'
 import { augmentAnalysis } from './analysis/augment-analysis'
-import { interpretIntegrity } from './analysis/interpret-integrity'
+import { buildIntegrityBatches, interpretIntegrity } from './analysis/interpret-integrity'
 import { exportFilenameBase } from './analysis/export-filename'
 
 interface ReviewWorkspaceProps {
@@ -109,7 +109,7 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
   const usesDeclaredClaims = currentAnalysis.analysisBasis === 'declared-claims'
   const exportBase = exportFilenameBase(currentAnalysis)
   const interpretedRun = currentAnalysis.interpretedIntegrity
-  const changedLineCount = currentAnalysis.changedLines?.length ?? 0
+  const interpretableBatches = useMemo(() => buildIntegrityBatches(currentAnalysis), [currentAnalysis])
   const subjectCount = currentAnalysis.evidence.requirements.length
   const subjectLabel = usesDeclaredClaims
     ? (subjectCount === 1 ? 'claim' : 'claims')
@@ -453,15 +453,15 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
               <button
                 className="payload-queue-action"
                 type="button"
-                disabled={!consent || interpreting || !changedLineCount}
+                disabled={!consent || interpreting || !interpretableBatches.length}
                 onClick={() => void handleInterpretIntegrity()}
               >
-                {interpreting ? 'Interpreting…' : 'Interpret excerpts'}
+                {interpreting ? 'Interpreting…' : interpretedRun ? 'Interpret again' : 'Interpret excerpts'}
               </button>
             </div>
             <p className="integrity-intro">
-              Pattern rules catch literal signals only. This optional pass sends all {changedLineCount} changed
-              lines to the hosted model to surface shortcuts that syntax matching misses, and discards anything
+              Pattern rules catch literal signals only. This optional pass reads the added source lines in
+              bounded batches, asks the hosted model for shortcuts syntax matching misses, and discards anything
               the rules above already report. It never changes those findings.
             </p>
             {!consent && (
@@ -469,13 +469,18 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
                 Approve sending excerpts in the AI evidence skeptic panel to enable this pass.
               </p>
             )}
+            {consent && !interpretableBatches.length && (
+              <p className="integrity-intro">This change has no added source lines to interpret.</p>
+            )}
             {interpretError && <p className="skeptic-error" role="alert">{interpretError}</p>}
             {interpretedRun && (
               <p className="skeptic-summary" role="status">
                 {interpretedRun.findings.length} new finding{interpretedRun.findings.length === 1 ? '' : 's'} ·{' '}
                 {interpretedRun.duplicatesDropped} already covered by pattern rules ·{' '}
-                {interpretedRun.interpreted} batch{interpretedRun.interpreted === 1 ? '' : 'es'} read ·
-                deterministic findings unchanged
+                {interpretedRun.linesInterpreted} of {interpretedRun.linesEligible} added source lines interpreted
+                {interpretedRun.skipped > 0
+                  ? ` · ${interpretedRun.skipped} batch${interpretedRun.skipped === 1 ? '' : 'es'} skipped`
+                  : ''} · deterministic findings unchanged
               </p>
             )}
             {interpretedRun?.message && <p className="skeptic-error" role="status">{interpretedRun.message}</p>}
@@ -493,7 +498,11 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
               </article>
             ))}
             {interpretedRun && !interpretedRun.findings.length && (
-              <p className="empty-integrity">The model reported no additional shortcut signals in the reviewed excerpts.</p>
+              <p className="empty-integrity">
+                {interpretedRun.interpreted === 0
+                  ? 'No excerpts were interpreted. Check the run status above before treating this as a clean result.'
+                  : `The model reported no additional shortcut signals in the ${interpretedRun.linesInterpreted} lines it read.`}
+              </p>
             )}
           </section>
         </aside>

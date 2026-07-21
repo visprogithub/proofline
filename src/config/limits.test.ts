@@ -15,6 +15,8 @@ describe('operational limits', () => {
       maxAssessmentSourceBytes: 262_144,
       maxHostedAssessments: 20,
       maxHostedInputChars: 20_000,
+      maxIntegrityBatchChars: 4_000,
+      maxIntegrityBatchLines: 60,
       maxAiConcurrency: 2,
       maxSemanticHunks: 100,
       maxSemanticHunkChars: 4_000,

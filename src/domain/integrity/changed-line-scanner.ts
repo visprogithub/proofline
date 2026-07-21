@@ -66,9 +66,14 @@ const rules: DetectionRule[] = [
   },
 ]
 
+/** Normalizes a changed path so scanner and interpreter line identifiers always match. */
+export function normalizePath(path: string): string {
+  return path.replaceAll('\\', '/')
+}
+
 /** Reports whether a changed path looks like reviewable source code. */
 export function isSourcePath(path: string): boolean {
-  return SOURCE_FILE.test(path.replaceAll('\\', '/'))
+  return SOURCE_FILE.test(normalizePath(path))
 }
 
 function findingId(rule: IntegrityRule, path: string, line: number): string {
