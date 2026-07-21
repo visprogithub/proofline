@@ -9,6 +9,7 @@ import { stateLabel } from './evidence-labels'
 import { EvidenceGraph } from '../components/evidence/EvidenceGraph'
 import { ProoflineSkeptic } from '../integrations/model/proofline-skeptic'
 import { augmentAnalysis } from './analysis/augment-analysis'
+import { interpretIntegrity } from './analysis/interpret-integrity'
 import { exportFilenameBase } from './analysis/export-filename'
 
 interface ReviewWorkspaceProps {
@@ -70,7 +71,10 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
   const [assessing, setAssessing] = useState(false)
   const [assessmentError, setAssessmentError] = useState<string | null>(null)
   const [graphFitRequest, setGraphFitRequest] = useState(0)
+  const [interpreting, setInterpreting] = useState(false)
+  const [interpretError, setInterpretError] = useState<string | null>(null)
   const assessmentController = useRef<AbortController | null>(null)
+  const interpretController = useRef<AbortController | null>(null)
 
   const assessableContexts = currentAnalysis.assessmentContexts.filter(({ status }) => status !== 'insufficient')
   const advisoryByContextId = useMemo(() => {
@@ -104,6 +108,8 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
     }, { assessed: 0, 'not-assessed': 0 })
   const usesDeclaredClaims = currentAnalysis.analysisBasis === 'declared-claims'
   const exportBase = exportFilenameBase(currentAnalysis)
+  const interpretedRun = currentAnalysis.interpretedIntegrity
+  const changedLineCount = currentAnalysis.changedLines?.length ?? 0
   const subjectCount = currentAnalysis.evidence.requirements.length
   const subjectLabel = usesDeclaredClaims
     ? (subjectCount === 1 ? 'claim' : 'claims')
@@ -179,8 +185,27 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
     setSelectedContextIds(new Set(candidates.slice(0, DEFAULT_LIMITS.maxHostedAssessments).map(({ id }) => id)))
   }
 
+  async function handleInterpretIntegrity(): Promise<void> {
+    setInterpretError(null)
+    const controller = new AbortController()
+    interpretController.current = controller
+    setInterpreting(true)
+    try {
+      const provider = new ProoflineSkeptic()
+      setCurrentAnalysis(await interpretIntegrity(currentAnalysis, provider, controller.signal))
+    } catch (caught) {
+      if (!controller.signal.aborted) {
+        setInterpretError(caught instanceof Error ? caught.message : 'The interpreted integrity pass failed.')
+      }
+    } finally {
+      setInterpreting(false)
+      interpretController.current = null
+    }
+  }
+
   function reset(): void {
     assessmentController.current?.abort()
+    interpretController.current?.abort()
     onReset()
   }
 
@@ -418,6 +443,59 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
               <strong>Next: {finding.remediation}</strong>
             </article>
           )) : <p className="empty-integrity">No configured integrity signals were observed.</p>}
+
+          <section className="integrity-interpreted" aria-labelledby="interpreted-title">
+            <div className="interpreted-heading">
+              <div>
+                <span>Optional / advisory</span>
+                <h3 id="interpreted-title">Model-interpreted findings</h3>
+              </div>
+              <button
+                className="payload-queue-action"
+                type="button"
+                disabled={!consent || interpreting || !changedLineCount}
+                onClick={() => void handleInterpretIntegrity()}
+              >
+                {interpreting ? 'Interpreting…' : 'Interpret excerpts'}
+              </button>
+            </div>
+            <p className="integrity-intro">
+              Pattern rules catch literal signals only. This optional pass sends all {changedLineCount} changed
+              lines to the hosted model to surface shortcuts that syntax matching misses, and discards anything
+              the rules above already report. It never changes those findings.
+            </p>
+            {!consent && (
+              <p className="integrity-intro">
+                Approve sending excerpts in the AI evidence skeptic panel to enable this pass.
+              </p>
+            )}
+            {interpretError && <p className="skeptic-error" role="alert">{interpretError}</p>}
+            {interpretedRun && (
+              <p className="skeptic-summary" role="status">
+                {interpretedRun.findings.length} new finding{interpretedRun.findings.length === 1 ? '' : 's'} ·{' '}
+                {interpretedRun.duplicatesDropped} already covered by pattern rules ·{' '}
+                {interpretedRun.interpreted} batch{interpretedRun.interpreted === 1 ? '' : 'es'} read ·
+                deterministic findings unchanged
+              </p>
+            )}
+            {interpretedRun?.message && <p className="skeptic-error" role="status">{interpretedRun.message}</p>}
+            {interpretedRun?.findings.map((finding) => (
+              <article className="integrity-finding interpreted" key={finding.id}>
+                <div className="finding-label"><span>model-interpreted</span><code>{finding.path}</code></div>
+                <h3>{finding.summary}</h3>
+                {finding.citedLines.length > 0 && (
+                  <pre>{finding.citedLines.map((line) => `${line.sourceLine ?? line.id}: ${line.content}`).join('\n')}</pre>
+                )}
+                <p>{finding.rationale}</p>
+                <p>{finding.impact}</p>
+                <strong>Next: {finding.remediation}</strong>
+                <small>{finding.provenance.providerId} · {finding.provenance.modelId} · advisory only</small>
+              </article>
+            ))}
+            {interpretedRun && !interpretedRun.findings.length && (
+              <p className="empty-integrity">The model reported no additional shortcut signals in the reviewed excerpts.</p>
+            )}
+          </section>
         </aside>
       </div>
 

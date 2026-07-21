@@ -1,9 +1,11 @@
 import { z } from 'zod'
 import type { AssessmentContext } from '../../domain/evidence/assessment-context'
+import type { IntegrityBatch } from '../../domain/integrity/interpreted-findings'
 import { DEFAULT_LIMITS, type OperationalLimits } from '../../config/limits'
 import {
   SkepticServiceError,
   SKEPTIC_SERVICE_ERROR_CODES,
+  type IntegrityInterpreter,
   type SkepticProvider,
   type SkepticProviderResponse,
   type SkepticServiceErrorCode,
@@ -78,7 +80,7 @@ function hostedContext(context: AssessmentContext, maxSerializedRequestChars: nu
 }
 
 /** Calls Proofline's server-side, throttled skeptic endpoint without exposing provider credentials. */
-export class ProoflineSkeptic implements SkepticProvider {
+export class ProoflineSkeptic implements SkepticProvider, IntegrityInterpreter {
   private readonly fetcher: typeof fetch
 
   constructor(
@@ -88,15 +90,13 @@ export class ProoflineSkeptic implements SkepticProvider {
     this.fetcher = fetcher.bind(globalThis)
   }
 
-  async assess(context: AssessmentContext, signal?: AbortSignal): Promise<SkepticProviderResponse> {
+  private async send(payload: unknown, signal?: AbortSignal): Promise<SkepticProviderResponse> {
     let response: Response
     try {
       response = await this.fetcher('/api/skeptic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          context: hostedContext(context, Math.max(1_000, this.limits.maxHostedInputChars - 2_000)),
-        }),
+        body: JSON.stringify(payload),
         ...(signal ? { signal } : {}),
       })
     } catch (error) {
@@ -133,5 +133,35 @@ export class ProoflineSkeptic implements SkepticProvider {
       },
       quota: parsed.quota,
     }
+  }
+
+  private compact(context: AssessmentContext) {
+    return hostedContext(context, Math.max(1_000, this.limits.maxHostedInputChars - 2_000))
+  }
+
+  /** Requests one requirement-relatedness assessment. */
+  assess(context: AssessmentContext, signal?: AbortSignal): Promise<SkepticProviderResponse> {
+    return this.send({ context: this.compact(context) }, signal)
+  }
+
+  /** Requests one advisory interpretation of a bounded batch of changed lines. */
+  interpret(batch: IntegrityBatch, signal?: AbortSignal): Promise<SkepticProviderResponse> {
+    return this.send({
+      context: {
+        schemaVersion: 1,
+        id: truncate(batch.id, 500),
+        requirement: { id: 'CHANGED-LINES', title: truncate(batch.path, 1_000), acceptanceCriteria: [] },
+        artifactLabel: truncate(batch.path, 1_000),
+        artifactRole: 'implementation',
+        status: 'complete',
+        lines: batch.lines.map((line) => ({
+          id: truncate(line.id, 200),
+          content: truncate(line.content, 4_000),
+          change: 'added' as const,
+          ...(line.sourceLine !== undefined ? { sourceLine: line.sourceLine } : {}),
+        })),
+      },
+      mode: 'integrity',
+    }, signal)
   }
 }

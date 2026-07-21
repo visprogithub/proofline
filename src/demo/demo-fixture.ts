@@ -3,6 +3,7 @@ import { parseRequirements } from '../domain/evidence/requirements-parser'
 import { deriveRequirementEvidence } from '../domain/evidence/state-derivation'
 import { scanChangedLines } from '../domain/integrity/changed-line-scanner'
 import type { EvidenceArtifact } from '../domain/evidence/types'
+import type { ChangedLine } from '../domain/integrity/types'
 import type { AnalysisCase } from '../app/analysis/types'
 import { buildAssessmentContexts } from '../domain/evidence/assessment-context'
 import { parseDiffEvidence } from '../domain/evidence/diff-evidence'
@@ -65,6 +66,15 @@ const artifacts: EvidenceArtifact[] = [
   ),
 ]
 
+const demoChangedLines: ChangedLine[] = [
+  { path: 'src/export.ts', line: 42, content: '// TODO: replace canned response', change: 'added' },
+  { path: 'src/export.ts', line: 43, content: 'const mockResponse = { ok: true }', change: 'added' },
+  { path: 'src/export.ts', line: 44, content: 'export async function sendReport(report, destination) {', change: 'added' },
+  { path: 'src/export.ts', line: 45, content: '  return { delivered: true }', change: 'added' },
+  { path: 'src/export.ts', line: 46, content: '}', change: 'added' },
+  { path: 'src/status.ts', line: 12, content: '} catch (error) { return null }', change: 'added' },
+]
+
 /** Produces the synthetic case by running the real evidence and integrity domains. */
 export function createDemoCase(): AnalysisCase {
   const requirements = parseRequirements(specification, source)
@@ -83,10 +93,8 @@ export function createDemoCase(): AnalysisCase {
     title: 'Add reviewer evidence exports',
     repository: 'proofline-labs/sample-service',
     evidence,
-    integrity: scanChangedLines([
-      { path: 'src/export.ts', line: 42, content: '// TODO: replace canned response', change: 'added' },
-      { path: 'src/export.ts', line: 43, content: "const mockResponse = { ok: true }", change: 'added' },
-    ]),
+    integrity: scanChangedLines(demoChangedLines),
+    changedLines: demoChangedLines,
     assessmentContexts: buildAssessmentContexts(evidence),
   }
 }

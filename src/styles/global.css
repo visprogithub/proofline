@@ -370,6 +370,12 @@ h1 em {
 .integrity-finding p,.integrity-finding>strong { font-size: .72rem; line-height: 1.5; }
 .integrity-finding>strong { display: block; margin-top: 12px; }
 .empty-integrity { padding: 24px; }
+.integrity-interpreted { border-top: 2px solid var(--ink); }
+.interpreted-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px 0; }
+.interpreted-heading span { font-family: 'DM Mono',monospace; font-size: .58rem; letter-spacing: .08em; text-transform: uppercase; color: var(--signal); }
+.interpreted-heading h3 { margin: 4px 0 0; font-size: .95rem; }
+.integrity-finding.interpreted { border-left: 6px dashed #7a6f57; background: #efe8db; }
+.integrity-finding small { display: block; margin-top: 10px; font-family: 'DM Mono',monospace; font-size: .58rem; color: var(--muted); }
 .case-disclaimer { margin-top: 24px; font-family: 'DM Mono',monospace; font-size: .63rem; text-align: center; }
 
 @media (max-width: 960px) {

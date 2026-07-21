@@ -91,6 +91,7 @@ export function analyzeLocalBundle(bundle: LocalBundle): AnalysisCase {
     repository: 'Files remain in this browser session',
     evidence,
     integrity: scanChangedLines(parsedDiff.changedLines),
+    changedLines: parsedDiff.changedLines,
     assessmentContexts: buildAssessmentContexts(evidence),
   }
 }

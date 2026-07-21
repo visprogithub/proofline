@@ -1,4 +1,5 @@
 import type { AssessmentContext } from './assessment-context'
+import type { IntegrityBatch } from '../integrity/interpreted-findings'
 import type { ModelProvenance } from './types'
 
 export interface SkepticProviderResult {
@@ -47,6 +48,14 @@ export class SkepticServiceError extends Error {
 
 export interface SkepticProvider {
   assess(context: AssessmentContext, signal?: AbortSignal): Promise<SkepticProviderResponse>
+}
+
+/**
+ * Requests a changed-line implementation-integrity interpretation. Results are advisory
+ * and never replace or modify deterministic integrity findings.
+ */
+export interface IntegrityInterpreter {
+  interpret(batch: IntegrityBatch, signal?: AbortSignal): Promise<SkepticProviderResponse>
 }
 
 export interface EmbeddingProvider {

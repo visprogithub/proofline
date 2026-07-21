@@ -66,6 +66,11 @@ const rules: DetectionRule[] = [
   },
 ]
 
+/** Reports whether a changed path looks like reviewable source code. */
+export function isSourcePath(path: string): boolean {
+  return SOURCE_FILE.test(path.replaceAll('\\', '/'))
+}
+
 function findingId(rule: IntegrityRule, path: string, line: number): string {
   return `${rule}:${path}:${line}`
 }

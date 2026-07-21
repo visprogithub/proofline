@@ -16,6 +16,7 @@ In one review workspace, it shows:
 - exact-ID evidence separately from weaker phrase suggestions;
 - passing, failing, implementation-only, missing, ambiguous, and suggested-evidence states;
 - changed-line implementation-integrity findings with file, line, impact, and remediation;
+- an optional model-interpreted integrity pass that reads every changed line for shortcuts the pattern rules cannot express, discards anything those rules already report, and stays in its own advisory lane;
 - an optional AI skeptic with selectable claim/artifact excerpts and advisory-only results;
 - downloadable Markdown and JSON reports plus a Mermaid evidence-map diagram.
 
@@ -131,6 +132,8 @@ Proofline is a hosted browser developer tool, not an IDE or ChatGPT plugin. The 
 9. Collapsed requirement rows show how many associations the AI reviewed, how many were not assessed, and whether an advisory result flagged human review, so users do not need to reopen the skeptic panel to find results.
 10. After explicit approval, Proofline sends only the selected, size-bounded excerpts through its quota-protected Vercel Function. The approval checkbox is remembered in local browser storage until the user clears it; only that boolean preference is persisted. Advisory results never upgrade deterministic evidence.
 
+11. A separate optional pass batches every added source line by file and sends it to the same endpoint under an integrity prompt. It is told what the pattern rules already detect and asked to report only what they cannot express—a function returning a fixed value regardless of its input, an error caught and discarded, a declared parameter the body never reads, or an assertion that cannot fail. Any finding whose cited lines the deterministic scanner already reports is dropped and counted instead of shown, so the interpreted lane only ever adds signal.
+
 Proofline reports evidence, not semantic correctness. Human review remains the decision boundary.
 
 ## Privacy, security, and limits
@@ -144,6 +147,8 @@ Proofline reports evidence, not semantic correctness. Human review remains the d
 - Private repository authentication is a post-hackathon goal and should use a GitHub App or OAuth—not personal access tokens pasted into the app.
 - Candidate discovery is bounded by centralized configuration: 100 changed files, 6 candidate documents, 12 declared claims, 256 KB per candidate, and 5 MB per local import.
 - Hosted skeptic usage is best-effort limited per salted connection and per warm Vercel instance each UTC day. Each run is capped at twenty selected excerpts, and unusually large excerpts are reduced before crossing the server's 20,000-character request ceiling. Request cancellation propagates to the provider, and systemic provider failures stop the remaining queue. No quota data, raw addresses, repository content, prompts, or model output is persisted.
+
+- The optional model-interpreted integrity pass reuses the same explicit approval, outbound secret scan, batch ceiling, and daily quota as the skeptic. It never modifies deterministic findings or requirement evidence states.
 
 See [architecture](docs/architecture.md), the [formal specification](specs/2026-07-16-openai-devpost-hackathon-entry/spec.md), and the [requirements](specs/2026-07-16-openai-devpost-hackathon-entry/planning/requirements.md).
 
@@ -169,9 +174,7 @@ The detailed build record is in [docs/codex-build-log.md](docs/codex-build-log.m
 - configurable integrity rule packs;
 - reusable developer-workflow integrations: extract the analysis engine into a library/package, expose it through a CLI or GitHub/IDE plugin, and offer an installable coding-agent skill so agents and reviewers can run Proofline where changes are created rather than switching to a separate website;
 - a selectable advisory model, letting reviewers choose the skeptic from a list of hosted open models;
-- model-interpreted integrity findings that augment, and never replace, the deterministic scanner.
-
-Today's integrity findings come from bounded pattern rules, so they catch literal signals such as a `TODO` marker, a `mockResponse` object, or an empty catch block. They cannot recognize code that is hollow in meaning rather than in syntax. A future opt-in pass would let the advisory model read the same changed lines and propose interpreted findings—for example, a handler that returns a fixed success payload regardless of its input, a catch block that swallows an error without surfacing it, a parameter the new logic never reads, or a test whose assertion cannot fail. Those findings would stay in their own lane: visibly labeled as model-interpreted, required to cite the exact lines they describe, kept separate from the deterministic findings list, and never able to change a requirement's evidence state.
+- cross-file reasoning for the interpreted integrity pass, so a shortcut can be judged against its callers rather than one file at a time.
 
 ## License
 

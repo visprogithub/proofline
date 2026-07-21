@@ -163,6 +163,8 @@ export async function analyzeGitHubChange(
       : 'Observed artifacts, not a correctness, security, or merge claim.',
   }
 
+  const changedLines = changedLinesFromFiles(files)
+
   return {
     id: `github:${identity.owner}/${identity.repository}:${identity.kind}:${summary.headSha.slice(0, 12)}`,
     mode: 'github',
@@ -172,7 +174,8 @@ export async function analyzeGitHubChange(
     changeUrl: summary.htmlUrl,
     changeLabel: changeLabel(identity),
     evidence,
-    integrity: scanChangedLines(changedLinesFromFiles(files)),
+    integrity: scanChangedLines(changedLines),
+    changedLines,
     assessmentContexts: buildAssessmentContexts(evidence),
   }
 }
