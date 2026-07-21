@@ -32,14 +32,19 @@ export function buildIntegrityBatches(
 ): IntegrityBatch[] {
   const byPath = new Map<string, InterpretedCitedLine[]>()
   for (const changed of analysis.changedLines ?? []) {
-    if (changed.change !== 'added') continue
+    if (changed.change !== 'added' && changed.change !== 'context') continue
     // The hosted schema requires a positive source line; a malformed patch that yields
     // line 0 would otherwise turn the whole batch into an opaque rejection.
     if (!Number.isInteger(changed.line) || changed.line < 1) continue
     const path = normalizePath(changed.path)
     if (!isSourcePath(path)) continue
     const lines = byPath.get(path) ?? []
-    lines.push({ id: lineId(path, changed.line), content: changed.content, sourceLine: changed.line })
+    lines.push({
+      id: lineId(path, changed.line),
+      content: changed.content,
+      sourceLine: changed.line,
+      change: changed.change,
+    })
     byPath.set(path, lines)
   }
 
@@ -47,20 +52,25 @@ export function buildIntegrityBatches(
   for (const [path, lines] of byPath) {
     let current: InterpretedCitedLine[] = []
     let characters = 0
+    const flush = (): void => {
+      // A batch of pure surrounding context has nothing under review, so it is not worth
+      // a hosted call. Empty batches are impossible here for the same reason.
+      if (current.some(({ change }) => change === 'added')) {
+        batches.push({ id: `integrity:${path}:${batches.length}`, path, lines: current })
+      }
+      current = []
+      characters = 0
+    }
     for (const line of lines) {
-      // Only flush a batch that actually holds lines; a single oversized line must not
-      // emit an empty batch, which the server rejects as an invalid request.
       if (current.length
         && (current.length >= limits.maxIntegrityBatchLines
           || characters + line.content.length > limits.maxIntegrityBatchChars)) {
-        batches.push({ id: `integrity:${path}:${batches.length}`, path, lines: current })
-        current = []
-        characters = 0
+        flush()
       }
       current.push(line)
       characters += line.content.length
     }
-    if (current.length) batches.push({ id: `integrity:${path}:${batches.length}`, path, lines: current })
+    if (current.length) flush()
   }
   return batches
 }
@@ -69,8 +79,13 @@ function batchText(batch: IntegrityBatch): string {
   return batch.lines.map(({ content }) => content).join('\n')
 }
 
-function countLines(batches: IntegrityBatch[]): number {
-  return batches.reduce((total, { lines }) => total + lines.length, 0)
+function addedLineCount(lines: readonly InterpretedCitedLine[]): number {
+  return lines.filter(({ change }) => change === 'added').length
+}
+
+/** Coverage is measured in changed lines only; surrounding context is not under review. */
+function countAddedLines(batches: IntegrityBatch[]): number {
+  return batches.reduce((total, { lines }) => total + addedLineCount(lines), 0)
 }
 
 /**
@@ -86,7 +101,7 @@ export async function interpretIntegrity(
   limits: OperationalLimits = DEFAULT_LIMITS,
 ): Promise<AnalysisCase> {
   const allBatches = buildIntegrityBatches(analysis, limits)
-  const linesEligible = countLines(allBatches)
+  const linesEligible = countAddedLines(allBatches)
   const affordable = allBatches.slice(0, limits.maxHostedAssessments)
 
   const eligible: IntegrityBatch[] = []
@@ -130,20 +145,22 @@ export async function interpretIntegrity(
     }
 
     interpreted += 1
-    linesInterpreted += batch.lines.length
+    linesInterpreted += addedLineCount(batch.lines)
     if (!isReportableVerdict(response.result.verdict)) return
     const byId = new Map(batch.lines.map((line) => [line.id, line]))
     const citedLines = response.result.citedLineIds.flatMap((id) => {
       const line = byId.get(id)
       return line ? [line] : []
     })
-    // An interpreted finding must point at submitted lines. Without them it cannot be
-    // checked against the deterministic findings, so it is not shown at all.
-    if (!citedLines.length) {
+    // A finding must point at a line the change actually introduced. Surrounding context
+    // is sent for comprehension only; flagging it would report pre-existing code as if it
+    // were part of this review.
+    const citedAdded = citedLines.filter(({ change }) => change === 'added')
+    if (!citedAdded.length) {
       skipped += 1
       return
     }
-    if (citedLines.every(({ id }) => alreadyFlagged.has(id))) {
+    if (citedAdded.every(({ id }) => alreadyFlagged.has(id))) {
       duplicatesDropped += 1
       return
     }

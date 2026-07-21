@@ -30,7 +30,10 @@ describe('server-side skeptic handler', () => {
         verdict: 'hollow-stub', rationale: 'The function body is empty.', citedLineIds: ['L1'],
       }) } }] })
 
-    const response = await createSkepticHandler({ env, chatClient: { complete } })(request())
+    // Pin the per-client budget so this assertion tracks quota accounting rather than
+    // whichever default the handler happens to ship with.
+    const budgeted: SkepticServerEnvironment = { ...env, AI_PER_CLIENT_DAILY_LIMIT: '10' }
+    const response = await createSkepticHandler({ env: budgeted, chatClient: { complete } })(request())
     const body = await response.text()
 
     expect(response.status).toBe(200)
@@ -39,7 +42,7 @@ describe('server-side skeptic handler', () => {
     expect(chatRequest?.allowedVerdicts).toContain('hollow-stub')
     expect(signal).toBeInstanceOf(AbortSignal)
     expect(body).not.toContain('server-secret')
-    expect(JSON.parse(body)).toMatchObject({ quota: { remainingToday: 49 } })
+    expect(JSON.parse(body)).toMatchObject({ quota: { remainingToday: 9 } })
   })
 
   it('accepts JSON wrapped in a Markdown code fence but still validates the contract', async () => {

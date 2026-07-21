@@ -167,7 +167,7 @@ export class ProoflineSkeptic implements SkepticProvider, IntegrityInterpreter {
     return batch.lines.map((line) => ({
       id: truncate(line.id, 200),
       content: truncate(line.content, 4_000),
-      change: 'added' as const,
+      change: line.change,
       ...(line.sourceLine !== undefined ? { sourceLine: line.sourceLine } : {}),
     }))
   }

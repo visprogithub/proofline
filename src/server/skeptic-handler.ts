@@ -242,9 +242,12 @@ export function createSkepticHandler({
       verdicts = allowedVerdicts(payload.context.artifactRole)
     }
 
-    const perClientLimit = positiveInteger(env.AI_PER_CLIENT_DAILY_LIMIT, 50, 1_000)
-    const globalRequestLimit = positiveInteger(env.AI_GLOBAL_DAILY_LIMIT, 500, 100_000)
-    const globalTokenLimit = positiveInteger(env.AI_GLOBAL_DAILY_TOKEN_LIMIT, 2_000_000, 100_000_000)
+    // The evidence skeptic and the interpreted integrity pass share this budget, so one
+    // thorough review can spend several dozen calls. The per-client cap is the abuse
+    // lever; the global caps are the backstop against many clients at once.
+    const perClientLimit = positiveInteger(env.AI_PER_CLIENT_DAILY_LIMIT, 250, 5_000)
+    const globalRequestLimit = positiveInteger(env.AI_GLOBAL_DAILY_LIMIT, 5_000, 100_000)
+    const globalTokenLimit = positiveInteger(env.AI_GLOBAL_DAILY_TOKEN_LIMIT, 20_000_000, 100_000_000)
     const maxOutputTokens = positiveInteger(env.AI_MAX_OUTPUT_TOKENS, 320, 1_000)
     const timeoutMs = positiveInteger(env.AI_PROVIDER_TIMEOUT_MS, 20_000, 25_000)
     const reservedTokens = Math.ceil(prompt.length / 4) + maxOutputTokens

@@ -33,9 +33,13 @@ npm run dev
 
 Open the URL printed by Vite. Use **Try the evidence dossier** for a deterministic tour, submit a public GitHub pull-request, commit, or comparison URL, or import a local requirements document, unified diff, and optional JUnit XML file. `npm run dev` covers deterministic browser features; use `npm run dev:full` when testing the optional hosted-skeptic endpoint with server variables from `.env.local`.
 
-### Recommended public GitHub example
+### Recommended public GitHub examples
 
-Use [Grow24/blocklycursor PR #1](https://github.com/Grow24/blocklycursor/pull/1) for a live repository analysis. It provides a compact, reviewable example in which `REQ-SALES-001` is carried through the PR traceability notes, approved requirement and design artifacts, changed rule-engine implementation, and acceptance test. This makes it a useful demonstration of both deterministic associations and the optional AI skeptic. GitHub request limits still apply, so connect GitHub if anonymous access is throttled.
+Use [Grow24/blocklycursor PR #1](https://github.com/Grow24/blocklycursor/pull/1) for a live repository analysis. It provides a compact, reviewable example in which `REQ-SALES-001` is carried through the PR traceability notes, approved requirement and design artifacts, changed rule-engine implementation, and acceptance test. This makes it a useful demonstration of both deterministic associations and the optional AI skeptic.
+
+[koala73/worldmonitor PR #5385](https://github.com/koala73/worldmonitor/pull/5385) is a second public change for running the same flow against an unrelated repository. Its outcome is not curated: Proofline reports whatever evidence that pull request actually contains, including a clean result if no requirement IDs, integrity signals, or interpreted shortcuts are present.
+
+GitHub request limits still apply, so connect GitHub if anonymous access is throttled.
 
 > [!IMPORTANT]
 > **Anonymous GitHub requests are throttled.** [GitHub limits unauthenticated REST API traffic](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api) to 60 requests per hour per public IP address. One Proofline analysis can use several requests while it inspects changed files and searches for requirement documents, so repeated analyses—or other people sharing the same network—can exhaust that allowance. If this happens, wait for GitHub's hourly window to reset, use the bundled demo or local import, or configure **Connect GitHub** for authenticated public-repository requests (up to 5,000 per hour). Proofline never asks you to paste a personal access token.
@@ -131,8 +135,8 @@ Proofline is a hosted browser developer tool, not an IDE or ChatGPT plugin. The 
 8. In the optional hosted skeptic, the user selects a whole claim or individual artifact excerpts, up to twenty per run. Already-assessed excerpts remain marked, permanently blocked excerpts are skipped, and **Select next batch** prioritizes work that has not been attempted. Excerpt code is collapsed by default inside a scroll-bounded inspector with a sticky selection toolbar.
 9. Collapsed requirement rows show how many associations the AI reviewed, how many were not assessed, and whether an advisory result flagged human review, so users do not need to reopen the skeptic panel to find results.
 10. After explicit approval, Proofline sends only the selected, size-bounded excerpts through its quota-protected Vercel Function. The approval checkbox is remembered in local browser storage until the user clears it; only that boolean preference is persisted. Advisory results never upgrade deterministic evidence.
-
-11. A separate optional pass batches every added source line by file and sends it to the same endpoint under an integrity prompt. It is told what the pattern rules already detect and asked to report only what they cannot express—a function returning a fixed value regardless of its input, an error caught and discarded, a declared parameter the body never reads, or an assertion that cannot fail. Any finding whose cited lines the deterministic scanner already reports is dropped and counted instead of shown, so the interpreted lane only ever adds signal.
+11. A separate optional pass batches every added source line by file and sends it to the same endpoint under an integrity prompt. Each batch also carries the unchanged context lines from its diff hunk, so an edit inside an existing function can be judged against the code around it rather than as a fragment. The model is told what the pattern rules already detect and asked to report only what they cannot express—a function returning a fixed value regardless of its input, an error caught and discarded, a declared parameter the body never reads, or an assertion that cannot fail.
+12. Interpreted findings are bounded twice over. A finding must cite at least one line the change actually introduced, so surrounding context can inform a verdict but never becomes the subject of one, and any finding whose cited lines the deterministic scanner already reports is dropped and counted instead of shown. Coverage is reported in changed lines interpreted, counting only batches the model answered.
 
 Proofline reports evidence, not semantic correctness. Human review remains the decision boundary.
 

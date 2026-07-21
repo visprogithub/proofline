@@ -18,6 +18,23 @@ function caseWith(lines: string[]) {
   })
 }
 
+/** A hunk that edits an existing function, so the patch carries surrounding context. */
+function caseWithContext() {
+  return analyzeLocalBundle({
+    requirements: { name: 'requirements.md', text: '## REQ-101: Export reports' },
+    diff: {
+      name: 'change.patch',
+      text: [
+        'diff --git a/src/a.ts b/src/a.ts',
+        '@@ -1,2 +1,3 @@',
+        ' export function send(input) {',
+        '+  return { delivered: true }',
+        ' }',
+      ].join('\n'),
+    },
+  })
+}
+
 function response(verdict: string, citedLineIds: string[]) {
   return {
     result: {
@@ -47,6 +64,14 @@ describe('interpreted integrity batching', () => {
 
     expect(batches.every(({ lines }) => lines.length > 0)).toBe(true)
     expect(batches.flatMap(({ lines }) => lines)).toHaveLength(3)
+  })
+
+  it('sends surrounding context so an edit inside an existing function is readable', () => {
+    const batches = buildIntegrityBatches(caseWithContext())
+
+    expect(batches).toHaveLength(1)
+    expect(batches[0]?.lines.map(({ change }) => change)).toEqual(['context', 'added', 'context'])
+    expect(batches[0]?.lines[0]?.content).toContain('export function send(input)')
   })
 
   it('drops changed lines without a positive source line', () => {
@@ -103,6 +128,26 @@ describe('interpreted integrity pass', () => {
 
     expect(after.interpretedIntegrity?.linesEligible).toBe(3)
     expect(after.interpretedIntegrity?.linesInterpreted).toBe(0)
+    expect(after.interpretedIntegrity?.skipped).toBeGreaterThan(0)
+  })
+
+  it('counts only changed lines as coverage, not the context sent with them', async () => {
+    const interpret = vi.fn((batch: IntegrityBatch) =>
+      Promise.resolve(response('no-signal', [batch.lines[1]?.id ?? 'missing'])))
+    const after = await interpretIntegrity(caseWithContext(), { interpret })
+
+    expect(after.interpretedIntegrity?.linesEligible).toBe(1)
+    expect(after.interpretedIntegrity?.linesInterpreted).toBe(1)
+  })
+
+  it('discards a finding that cites only surrounding context', async () => {
+    const interpret = vi.fn((batch: IntegrityBatch) => Promise.resolve(response(
+      'hollow-implementation',
+      [batch.lines.find(({ change }) => change === 'context')?.id ?? 'missing'],
+    )))
+    const after = await interpretIntegrity(caseWithContext(), { interpret })
+
+    expect(after.interpretedIntegrity?.findings).toEqual([])
     expect(after.interpretedIntegrity?.skipped).toBeGreaterThan(0)
   })
 

@@ -12,7 +12,9 @@ function integrityBatch(lines: { line: number; content: string }[]): IntegrityBa
   return {
     id: 'integrity:src/a.ts:0',
     path: 'src/a.ts',
-    lines: lines.map(({ line, content }) => ({ id: `src/a.ts:${line}`, content, sourceLine: line })),
+    lines: lines.map(({ line, content }) => ({
+      id: `src/a.ts:${line}`, content, sourceLine: line, change: 'added' as const,
+    })),
   }
 }
 
@@ -77,7 +79,9 @@ describe('interpreted integrity client/server contract', () => {
     const body = await wireBodyFor({
       id: 'integrity:src/a.test.ts:0',
       path: 'src/a.test.ts',
-      lines: [{ id: 'src/a.test.ts:1', content: 'expect(true).toBe(true)', sourceLine: 1 }],
+      lines: [{
+        id: 'src/a.test.ts:1', content: 'expect(true).toBe(true)', sourceLine: 1, change: 'added' as const,
+      }],
     }) as { artifactRole: string }
 
     expect(body.artifactRole).toBe('test-source')

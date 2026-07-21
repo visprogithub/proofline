@@ -489,7 +489,9 @@ export function ReviewWorkspace({ analysis, onReset }: ReviewWorkspaceProps) {
                 <div className="finding-label"><span>model-interpreted</span><code>{finding.path}</code></div>
                 <h3>{finding.summary}</h3>
                 {finding.citedLines.length > 0 && (
-                  <pre>{finding.citedLines.map((line) => `${line.sourceLine ?? line.id}: ${line.content}`).join('\n')}</pre>
+                  <pre>{finding.citedLines.map((line) => (
+                    `${line.change === 'added' ? '+' : ' '} ${line.sourceLine ?? line.id}: ${line.content}`
+                  )).join('\n')}</pre>
                 )}
                 <p>{finding.rationale}</p>
                 <p>{finding.impact}</p>

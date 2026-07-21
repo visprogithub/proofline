@@ -31,6 +31,8 @@ export interface InterpretedCitedLine {
   id: string
   content: string
   sourceLine?: number
+  /** `context` lines are surrounding source sent for comprehension, not part of the change. */
+  change: 'added' | 'context'
 }
 
 /** A bounded group of changed lines from one file, submitted as one interpreted-pass request. */
